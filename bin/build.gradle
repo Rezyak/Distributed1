@@ -1,0 +1,23 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+mainClassName = 'it.ds1.App'
+
+dependencies {
+    compile 'com.google.guava:guava:23.0'
+
+    compile 'com.typesafe.akka:akka-actor_2.12:2.5.12'
+    compile 'com.typesafe.akka:akka-remote_2.12:2.5.12'
+    compile 'com.typesafe.akka:akka-testkit_2.12:2.5.12'
+}
+
+repositories {
+    jcenter()
+}
+
+run {
+    standardInput = System.in
+    systemProperty "config.resource", System.getProperty("config")
+}
