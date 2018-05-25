@@ -17,13 +17,13 @@ public class Messages {
     }
   }
 
-  public static class RequestNodelist implements Serializable {}
+    public static class Test implements Serializable {}
 
-  public static class Nodelist implements Serializable {
-    Map<Integer, ActorRef> nodes;
+    public static class GroupView implements Serializable {
+        Map<Integer, ActorRef> groupView;
 
-    public Nodelist(Map<Integer, ActorRef> nodes) {
-      this.nodes = Collections.unmodifiableMap(new HashMap<Integer, ActorRef>(nodes));
+        public GroupView(Map<Integer, ActorRef> groupView) {
+        this.groupView = Collections.unmodifiableMap(new HashMap<Integer, ActorRef>(groupView));
+        }
     }
-  }
 }

@@ -1,6 +1,7 @@
 package it.ds1;
 import static it.ds1.Messages.*;
-import it.ds1.Node;
+import it.ds1.GroupManager;
+import it.ds1.GroupMember;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -8,36 +9,46 @@ import java.io.IOException;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import akka.actor.Props;
 
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.Config;
 
 public class App {
-	static private String remotePath = null; // Akka path of the bootstrapping peer
+	static private String remotePath = null;
 
 	public static void main(String[] args) {
 		System.out.println(">>> Press ENTER to exit <<<");
 
+        //TODO In addition to that, in the case of the networked implementation, 
+        // the user should be able to add a new group member by running a new instance of the program and specifying the IP address
+        // and the port of the group manager.
 		Config config = ConfigFactory.load();
-		int myId = config.getInt("nodeapp.id");
+		int mID = config.getInt("nodeapp.id");
 
-		if (config.hasPath("nodeapp.remote_ip")) {
-			String remote_ip = config.getString("nodeapp.remote_ip");
-			int remote_port = config.getInt("nodeapp.remote_port");
-			// Starting with a bootstrapping node
-			// The Akka path to the bootstrapping peer
-			remotePath = "akka.tcp://DistributedChat@" + remote_ip + ":" + remote_port + "/user/node";
-			System.out.println("Starting node " + myId + "; bootstrapping node: " + remote_ip + ":" + remote_port);
-		} else {
-			System.out.println("Starting bootstrapping node " + myId);
-		}
+        Props mNode = null;
+        String actorSystemName = "DistributedChat_"+mID;
+        String actorName = "node_"+mID;
 
-		final ActorSystem asystem = ActorSystem.create("DistributedChat", config);
-		// Create a single node actor locally
-		final ActorRef receiver = asystem.actorOf(
-			Node.props(myId, remotePath),
-			"node"      // actor name
-		);
+        if (mID==0){
+			System.out.println("Starting bootstrapping node " + mID);
+			mNode = GroupManager.props(mID, remotePath);
+        }else{
+            if (config.hasPath("nodeapp.remote_ip")) {
+                String remote_ip = config.getString("nodeapp.remote_ip");
+                int remote_port = config.getInt("nodeapp.remote_port");
+
+                remotePath = "akka.tcp://DistributedChat_0@" + remote_ip + ":" + remote_port + "/user/node_0";
+                System.out.println("Starting node " + mID + "; bootstrapping node: " + remote_ip + ":" + remote_port);
+            }else{
+                System.out.println("no romete address found in config file");
+            }
+            mNode = GroupMember.props(mID, remotePath);            
+        }
+
+		final ActorSystem asystem = ActorSystem.create(actorSystemName, config);
+		final ActorRef receiver = asystem.actorOf(mNode, actorName);
+
 		try {
 			System.in.read();
 		} catch (IOException e) {
