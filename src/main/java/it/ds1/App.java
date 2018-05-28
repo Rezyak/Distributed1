@@ -2,6 +2,9 @@ package it.ds1;
 import static it.ds1.Messages.*;
 import it.ds1.GroupManager;
 import it.ds1.GroupMember;
+import it.ds1.GlobalState;
+import it.ds1.NodeState;
+import it.ds1.Logging;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -18,7 +21,6 @@ public class App {
 	static private String remotePath = null;
 
 	public static void main(String[] args) {
-		System.out.println(">>> Press ENTER to exit <<<");
 
         //TODO In addition to that, in the case of the networked implementation, 
         // the user should be able to add a new group member by running a new instance of the program and specifying the IP address
@@ -30,20 +32,26 @@ public class App {
         String actorSystemName = "DistributedChat_"+mID;
         String actorName = "node_"+mID;
 
-        if (mID==0){
-			System.out.println("Starting bootstrapping node " + mID);
-			mNode = GroupManager.props(mID, remotePath);
+        if (mID==0){    
+			mNode = GroupManager.props(
+                mID, 
+                remotePath,
+                new GlobalState(mID)
+            );
         }else{
             if (config.hasPath("nodeapp.remote_ip")) {
                 String remote_ip = config.getString("nodeapp.remote_ip");
                 int remote_port = config.getInt("nodeapp.remote_port");
 
                 remotePath = "akka.tcp://DistributedChat_0@" + remote_ip + ":" + remote_port + "/user/node_0";
-                System.out.println("Starting node " + mID + "; bootstrapping node: " + remote_ip + ":" + remote_port);
             }else{
-                System.out.println("no romete address found in config file");
+                Logging.err("no romete address found in config file");
             }
-            mNode = GroupMember.props(mID, remotePath);            
+            mNode = GroupMember.props(
+                mID,
+                remotePath,
+                new NodeState(mID)
+            );            
         }
 
 		final ActorSystem asystem = ActorSystem.create(actorSystemName, config);
