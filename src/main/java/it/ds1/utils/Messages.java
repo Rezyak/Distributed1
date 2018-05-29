@@ -17,6 +17,8 @@ public class Messages {
         }
     }
 
+    public static class SendMessage implements Serializable{}
+
     public static class ChatMsg implements Serializable {
         final Integer msgSeqnum;
         final Integer senderID;

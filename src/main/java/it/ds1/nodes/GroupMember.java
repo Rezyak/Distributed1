@@ -1,21 +1,17 @@
 package it.ds1;
 import static it.ds1.Messages.*;
-import it.ds1.NodeState;
 
 import akka.actor.Props;
 import akka.actor.ActorRef;
 
 public class GroupMember extends Node{
-    private NodeState state = null;
 
-    private GroupMember(int id, String remotePath, NodeState state) {
-        super(id, remotePath, state);
-        this.state = state;
-        this.state.printState();            
+    private GroupMember(int id, String remotePath) {
+        super(id, remotePath);           
     }
 
-    static public Props props(int id, String remotePath, NodeState state) {
-		return Props.create(GroupMember.class, () -> new GroupMember(id, remotePath, state));
+    static public Props props(int id, String remotePath) {
+		return Props.create(GroupMember.class, () -> new GroupMember(id, remotePath));
 	}
 
     public void preStart() {
@@ -25,8 +21,9 @@ public class GroupMember extends Node{
 	}
     
     private void onGroupView(GroupView message) {
+        this.onGroupViewUpdate = true;                    
         this.state.putAllMembers(message);
-        this.state.printState();
+        // this.state.printState();
         allToAll();       
 	}
 

@@ -11,7 +11,6 @@ import java.util.Collections;
 import akka.actor.ActorRef;
 
 public class GroupViewMap extends Iterable<ActorRef>{
-
     private Integer groupViewSeqnum;
     
     public GroupViewMap(Integer groupViewSeqnum){
@@ -24,6 +23,7 @@ public class GroupViewMap extends Iterable<ActorRef>{
     public void setSeqnum(Integer seqnum){
         this.groupViewSeqnum = seqnum;
     }
+    
     public void putMember(Integer id, ActorRef nodeRef){
         this.map.put(id, nodeRef);  
     }

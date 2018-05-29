@@ -2,8 +2,7 @@ package it.ds1;
 import static it.ds1.Messages.*;
 import it.ds1.GroupManager;
 import it.ds1.GroupMember;
-import it.ds1.GlobalState;
-import it.ds1.NodeState;
+import it.ds1.State;
 import it.ds1.Logging;
 
 import java.util.List;
@@ -35,8 +34,7 @@ public class App {
         if (mID==0){    
 			mNode = GroupManager.props(
                 mID, 
-                remotePath,
-                new GlobalState(mID)
+                remotePath
             );
         }else{
             if (config.hasPath("nodeapp.remote_ip")) {
@@ -49,8 +47,7 @@ public class App {
             }
             mNode = GroupMember.props(
                 mID,
-                remotePath,
-                new NodeState(mID)
+                remotePath
             );            
         }
 
