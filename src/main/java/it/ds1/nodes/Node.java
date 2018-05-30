@@ -54,8 +54,8 @@ public class Node extends AbstractActor {
     /**
     *   send all unstable messages to all processes in the new view
     */
-    protected void allToAll(){
-        Network.delayAllToAll(this.state, getSelf());
+    protected void allToAll(Integer seqnum, Integer id){
+        Network.delayAllToAll(seqnum, id, state, getSelf());
     } 
     
     /**
@@ -90,18 +90,22 @@ public class Node extends AbstractActor {
         this.state.insertFlush(msg);
         Integer flushSize = this.state.getFlushSize();
         Integer groupSize = this.state.getGroupViewSize()-1;
-        if (flushSize==groupSize){
-            this.state.setGroupViewSeqnum(msg.groupViewSeqnum+1);
-            // this.state.printState();
-            printInstallView();
-            this.state.clearFlush();      
-    
-            printBufferMessages();
-            this.state.clearBuffer();        
-            
-            this.onGroupViewUpdate = false;            
-            getSelf().tell(new SendMessage(), getSelf());       
+        if (flushSize==groupSize){ 
+            this.state.setGroupViewSeqnum(msg.groupViewSeqnum+1);                       
+            onViewInstalled();     
         }
+    }
+
+    protected void onViewInstalled(){
+        
+        printInstallView();
+        printBufferMessages();
+
+        this.onGroupViewUpdate = false;            
+        this.state.clearBuffer();
+        this.state.clearFlush();  
+
+        getSelf().tell(new SendMessage(), getSelf());        
     }
 
     /**

@@ -10,7 +10,7 @@ import akka.actor.ActorRef;
 public class Messages {
 
     public static class Join implements Serializable {
-        int id;
+        final Integer id;
 
         public Join(int id) {
             this.id = id;
@@ -34,6 +34,19 @@ public class Messages {
     public static class Flush implements Serializable {
         final Integer groupViewSeqnum;
         final Integer senderID;        
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj)    return true;
+            if (obj == null)    return false;
+            if (getClass() != obj.getClass())   return false;
+            
+            Flush other = (Flush) obj;
+            if (this.groupViewSeqnum != other.groupViewSeqnum 
+            ||  this.senderID != other.senderID)    return false;
+            
+            return true;
+        }
 
         public Flush(Integer groupViewSeqnum, Integer senderID){
             this.groupViewSeqnum = groupViewSeqnum;

@@ -43,9 +43,7 @@ public class Network {
         });
     }
 
-    public static void delayAllToAll(State state, ActorRef self){
-        Integer gSeqnum = state.getGroupViewSeqnum();
-        Integer nodeID = state.getID();
+    public static void delayAllToAll(Integer seqnum, Integer id, State state, ActorRef self){
 
         state.getMessagesInstance().shuffledForEach(new MessageMap.Action<ChatMsg>(){
             @Override
@@ -53,6 +51,6 @@ public class Network {
                 delayMulticast(msg, state, self);                         
             }
         });      
-        delayMulticast(new Flush(gSeqnum, nodeID), state, self);
+        delayMulticast(new Flush(seqnum, id), state, self);
     }
 }
