@@ -10,11 +10,15 @@ import java.util.Random;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import akka.actor.AbstractActor;
 import akka.japi.pf.ReceiveBuilder;
 import akka.actor.ActorRef;
 import akka.actor.Props;
+import akka.actor.Cancellable;
+import scala.concurrent.duration.Duration;
 
 public class Node extends AbstractActor {
 
@@ -22,26 +26,41 @@ public class Node extends AbstractActor {
 	protected String remotePath;    //remote path to the groupManager
     protected State state;          //state object of the node
 
-    //TODO move into State
     protected Integer msgSeqnum;
     protected Boolean onGroupViewUpdate;
 
-    protected Random rnd;
     
+    protected Cancellable sendTimeout;
+    private Map<Integer,Cancellable> flushTimeout;
 
 	protected Node(int id, String remotePath) {
 		this.id = id;
 		this.remotePath = remotePath;
+        this.init(id);      
+	}
+    
+    protected void init(int id){
         this.state = new State(id);
 
         this.msgSeqnum = 0;
-        this.onGroupViewUpdate = false;
-        this.rnd = new Random();          
-	}
+        this.onGroupViewUpdate = false;  
+
+        this.sendTimeout = null;
+        this.flushTimeout = new HashMap<>();          
+    }
     
     static public Props props(int id, String remotePath) {
 		return Props.create(Node.class, () -> new Node(id, remotePath));
 	}
+
+    protected Cancellable sendSelfAsyncMessage(int time, Serializable m) {
+        return getContext().system().scheduler().scheduleOnce(
+            Duration.create(time, TimeUnit.MILLISECONDS),  
+            getSelf(),
+            m,
+            getContext().system().dispatcher(), getSelf()
+        );
+    }
 
     /**
     *   each node can perform a multicast call given a message m
@@ -67,7 +86,9 @@ public class Node extends AbstractActor {
     *   -   insert the incoming message in a map, deliver it only if it is not a dupplicate
     */
     protected void onMessage(ChatMsg msg){
-        if (msg.senderID==this.id)  return;
+        if (this.state.getGroupViewSeqnum()==null) return;
+        if (msg.senderID.compareTo(this.id)==0) return;
+        if (this.state.isMember(msg.senderID)==false) return;
 
         if (msg.groupViewSeqnum>this.state.getGroupViewSeqnum()){
             this.state.addBuffer(msg);
@@ -85,8 +106,16 @@ public class Node extends AbstractActor {
     *   -   start multicast
     */
     protected void onFlush(Flush msg){
-        Logging.log(this.id+" flush "+msg.groupViewSeqnum+" from "+msg.senderID+" within "+this.state.getGroupViewSeqnum());                
-        
+        Boolean selfMessage = msg.senderID.compareTo(this.id)==0; 
+        Boolean inGroup = this.state.isMember(msg.senderID);
+        if (selfMessage) return;
+        if (inGroup==false) return;
+
+        //if received cancel it
+        Cancellable timer = this.flushTimeout.get(msg.senderID);
+        if (timer!=null) timer.cancel();
+
+        Logging.log(this.id+" flush "+msg.groupViewSeqnum+" from "+msg.senderID+" within "+this.state.getGroupViewSeqnum());
         this.state.insertFlush(msg);
         Integer flushSize = this.state.getFlushSize();
         Integer groupSize = this.state.getGroupViewSize()-1;
@@ -97,7 +126,7 @@ public class Node extends AbstractActor {
     }
 
     protected void onViewInstalled(){
-        
+        cancelTimers();        
         printInstallView();
         printBufferMessages();
 
@@ -105,7 +134,7 @@ public class Node extends AbstractActor {
         this.state.clearBuffer();
         this.state.clearFlush();  
 
-        getSelf().tell(new SendMessage(), getSelf());        
+        getSelf().tell(new SendMessage(), getSelf());
     }
 
     /**
@@ -123,9 +152,7 @@ public class Node extends AbstractActor {
         multicast(newMsg);
         this.msgSeqnum += 1;
         
-        //TODO change delay
-        Network.delay(rnd.nextInt(Network.Td)+1);
-        getSelf().tell(new SendMessage(), getSelf());
+        this.sendTimeout = sendSelfAsyncMessage(Network.Td/2, new SendMessage());
     }
 
     /**
@@ -135,7 +162,40 @@ public class Node extends AbstractActor {
         return receiveBuilder()
             .match(ChatMsg.class, this::onMessage)
             .match(Flush.class, this::onFlush)
-            .match(SendMessage.class, this::onSendMessage);
+            .match(SendMessage.class, this::onSendMessage)
+            .match(FlushTimeout.class, this::onFlushTimeout);
+    }
+
+    protected void setFlushTimeout(){
+        List<Integer> memberList = this.state.getMemberList();
+        for (Integer member: memberList){
+            if (member.compareTo(this.id)==0) continue;
+
+            Cancellable timer = this.flushTimeout.get(member);
+            if (timer!=null){
+                timer.cancel();
+                this.flushTimeout.put(member, null);        
+            }
+            this.flushTimeout.put(member, sendSelfAsyncMessage(Network.Td, new FlushTimeout(member)));                    
+            
+        }
+    }
+
+    protected void onFlushTimeout(FlushTimeout msg){}
+
+    protected void cancelTimers(){
+        if (this.sendTimeout!=null){
+            this.sendTimeout.cancel();
+            this.sendTimeout = null;
+        }
+        List<Integer> memberList = this.state.getMemberList();
+        for (Integer member: memberList){
+            Cancellable timer = this.flushTimeout.get(member);
+            if (timer!=null){
+                timer.cancel();
+                this.flushTimeout.put(member, null);        
+            }
+        }
     }
 
     @Override

@@ -19,6 +19,19 @@ public class Messages {
 
     public static class SendMessage implements Serializable{}
 
+    public static class MessageTimeout implements Serializable{
+        final Integer id;
+         public MessageTimeout(int id) {
+            this.id = id;
+        }
+    }
+    public static class FlushTimeout implements Serializable{
+        final Integer id;
+         public FlushTimeout(int id) {
+            this.id = id;
+        }
+    }
+
     public static class ChatMsg implements Serializable {
         final Integer msgSeqnum;
         final Integer senderID;
@@ -31,6 +44,15 @@ public class Messages {
         }
     }
     
+    public static class Hello implements Serializable{
+        final Integer senderID;
+
+        public Hello(Integer id){
+            this.senderID = id;
+        }
+    }
+
+
     public static class Flush implements Serializable {
         final Integer groupViewSeqnum;
         final Integer senderID;        
