@@ -45,7 +45,7 @@ public class GroupManager extends Node{
             printInstallView();
         }
         cancelTimers();        
-        clearBuffers();            
+        this.state.clearFlush();            
         this.groupViewQueue = new LinkedList<>();
     }
 
@@ -57,7 +57,7 @@ public class GroupManager extends Node{
 
         Logging.log("join request from "+message.id);
         cancelTimers();
-        clearBuffers();        
+        this.state.clearFlush();      
 		int id = message.id;
         this.state.putMember(id, getSender());
         updateGroupView();
@@ -85,7 +85,7 @@ public class GroupManager extends Node{
     private void onCrashDetected(int id){     
         Logging.log("crash detected "+id);   
         cancelTimers();                                   
-        clearBuffers(); 
+        this.state.clearFlush();
         this.state.removeMember(id);
         
         Integer groupSize = this.state.getGroupViewSize()-1;

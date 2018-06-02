@@ -91,11 +91,11 @@ public class Node extends AbstractActor {
     protected void onMessage(ChatMsg msg){
         Boolean noGroupView = this.state.getGroupViewSeqnum()==null;
         if (noGroupView) return;
+        
         Boolean selfMessage = msg.senderID.compareTo(this.id)==0; 
         if(selfMessage) return;
         
         Boolean notYet = msg.groupViewSeqnum>this.state.getGroupViewSeqnum();
-        
         if (notYet){
             this.state.addBuffer(msg);
             return;
@@ -113,9 +113,11 @@ public class Node extends AbstractActor {
     *   -   start multicast
     */
     protected void onFlush(Flush msg){
+
         Boolean selfMessage = msg.senderID.compareTo(this.id)==0; 
-        Boolean inGroup = this.state.isMember(msg.senderID);
         if (selfMessage) return;
+        
+        Boolean inGroup = this.state.isMember(msg.senderID);
         if (inGroup==false) return;
 
         //if received cancel it
@@ -152,8 +154,9 @@ public class Node extends AbstractActor {
     }
     
     protected void onViewInstalled(){
-        cancelTimers();        
-        clearBuffers();            
+        cancelTimers();   
+        this.state.clearFlush();        
+             
         this.groupViewQueue = new LinkedList<>();
         getSelf().tell(new SendMessage(), getSelf());
     }
@@ -216,10 +219,6 @@ public class Node extends AbstractActor {
                 this.flushTimeout.put(member, null);        
             }
         }
-    }
-    protected void clearBuffers(){
-        this.state.clearBuffer();
-        this.state.clearFlush(); 
     }
 
     @Override

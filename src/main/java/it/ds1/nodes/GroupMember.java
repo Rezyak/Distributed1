@@ -38,6 +38,7 @@ public class GroupMember extends Node{
 	}
     
     private void onGroupView(GroupView message) {
+        this.state.clearFlush();        
         checkMessageTimeout();
 
         Logging.log("request update group view "+message.groupViewSeqnum);
