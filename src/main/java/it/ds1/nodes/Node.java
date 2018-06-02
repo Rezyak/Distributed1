@@ -89,19 +89,17 @@ public class Node extends AbstractActor {
     *   -   insert the incoming message in a map, deliver it only if it is not a dupplicate
     */
     protected void onMessage(ChatMsg msg){
-        Boolean notYet = msg.groupViewSeqnum>this.state.getGroupViewSeqnum();
         Boolean noGroupView = this.state.getGroupViewSeqnum()==null;
+        if (noGroupView) return;
         Boolean selfMessage = msg.senderID.compareTo(this.id)==0; 
-        // Boolean inGroup = this.state.isMember(msg.senderID);
+        if(selfMessage) return;
+        
+        Boolean notYet = msg.groupViewSeqnum>this.state.getGroupViewSeqnum();
         
         if (notYet){
             this.state.addBuffer(msg);
             return;
         }
-
-        if (noGroupView) return;
-        if(selfMessage) return;
-        // if(inGroup==false) return;
 
         if (this.state.insertNewMessage(msg, msg.senderID)){
             printDeliverMessage(msg);
@@ -128,6 +126,7 @@ public class Node extends AbstractActor {
         this.state.insertFlush(msg);
         Integer flushSize = this.state.getFlushSize();
         Integer groupSize = this.state.getGroupViewSize()-1;
+        Logging.log(flushSize+" groupsize:"+groupSize+" "+this.state.commaSeparatedList());
         if (flushSize==groupSize){ 
             installView();     
         }

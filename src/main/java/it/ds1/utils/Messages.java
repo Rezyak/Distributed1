@@ -12,7 +12,7 @@ public class Messages {
     public static class Join implements Serializable {
         final Integer id;
 
-        public Join(int id) {
+        public Join(int id) {         
             this.id = id;
         }
     }
