@@ -25,9 +25,15 @@ public class State {
         this.nodeID = id;
     }
 
-    public Integer getGroupViewSize(){return getMemberList().size();}
-    public void setGroupViewSeqnum(Integer seqnum){this.groupView.setSeqnum(seqnum);}
-    public Integer getGroupViewSeqnum(){return this.groupView.getSeqnum();}
+    public Integer getGroupViewSize(){
+        return getMemberList().size();
+    }
+    public void setGroupViewSeqnum(GroupView msg){
+        this.groupView.setSeqnum(msg.groupViewSeqnum);
+    }
+    public Integer getGroupViewSeqnum(){    
+        return this.groupView.getSeqnum();
+    }
 
     public void putAllMembers(GroupView message){
 		this.groupView.putAllMember(message.groupView);
@@ -38,11 +44,6 @@ public class State {
     }
     public void removeMember(Integer id){
 		this.groupView.removeMember(id);        
-    }
-
-    public void putSelf(Integer id, ActorRef nodeRef){
-		this.groupView.putMember(id, nodeRef);
-        if (getGroupViewSeqnum()==null) setGroupViewSeqnum(0);
     }
 
     public Integer getID(){return this.nodeID;}

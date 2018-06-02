@@ -12,6 +12,8 @@ import java.util.Map;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.Deque;
+import java.util.LinkedList;
 
 import akka.actor.AbstractActor;
 import akka.japi.pf.ReceiveBuilder;
@@ -27,11 +29,11 @@ public class Node extends AbstractActor {
     protected State state;          //state object of the node
 
     protected Integer msgSeqnum;
-    protected Boolean onGroupViewUpdate;
-
     
-    protected Cancellable sendTimeout;
+    protected Cancellable sendTimer;
     private Map<Integer,Cancellable> flushTimeout;
+
+    protected Deque<GroupView> groupViewQueue;
 
 	protected Node(int id, String remotePath) {
 		this.id = id;
@@ -42,11 +44,11 @@ public class Node extends AbstractActor {
     protected void init(int id){
         this.state = new State(id);
 
-        this.msgSeqnum = 0;
-        this.onGroupViewUpdate = false;  
+        this.msgSeqnum = 0;  
 
-        this.sendTimeout = null;
-        this.flushTimeout = new HashMap<>();          
+        this.sendTimer = null;
+        this.flushTimeout = new HashMap<>();    
+        this.groupViewQueue = new LinkedList<>();  
     }
     
     static public Props props(int id, String remotePath) {
@@ -74,6 +76,7 @@ public class Node extends AbstractActor {
     *   send all unstable messages to all processes in the new view
     */
     protected void allToAll(Integer seqnum, Integer id){
+        Logging.log("all-to-all");
         Network.delayAllToAll(seqnum, id, state, getSelf());
     } 
     
@@ -86,14 +89,20 @@ public class Node extends AbstractActor {
     *   -   insert the incoming message in a map, deliver it only if it is not a dupplicate
     */
     protected void onMessage(ChatMsg msg){
-        if (this.state.getGroupViewSeqnum()==null) return;
-        if (msg.senderID.compareTo(this.id)==0) return;
-        if (this.state.isMember(msg.senderID)==false) return;
-
-        if (msg.groupViewSeqnum>this.state.getGroupViewSeqnum()){
+        Boolean notYet = msg.groupViewSeqnum>this.state.getGroupViewSeqnum();
+        Boolean noGroupView = this.state.getGroupViewSeqnum()==null;
+        Boolean selfMessage = msg.senderID.compareTo(this.id)==0; 
+        // Boolean inGroup = this.state.isMember(msg.senderID);
+        
+        if (notYet){
             this.state.addBuffer(msg);
             return;
         }
+
+        if (noGroupView) return;
+        if(selfMessage) return;
+        // if(inGroup==false) return;
+
         if (this.state.insertNewMessage(msg, msg.senderID)){
             printDeliverMessage(msg);
         }        
@@ -120,20 +129,33 @@ public class Node extends AbstractActor {
         Integer flushSize = this.state.getFlushSize();
         Integer groupSize = this.state.getGroupViewSize()-1;
         if (flushSize==groupSize){ 
-            this.state.setGroupViewSeqnum(msg.groupViewSeqnum+1);                       
-            onViewInstalled();     
+            installView();     
         }
     }
 
+    protected void installView(){
+        for(GroupView v: groupViewQueue){
+            this.state.setGroupViewSeqnum(v);
+            this.state.putAllMembers(v);
+
+            printInstallView();
+            List<ChatMsg> buffer = this.state.getBufferMessages();
+            for(ChatMsg msg :buffer){
+                Boolean notYet = msg.groupViewSeqnum>this.state.getGroupViewSeqnum();
+                if(notYet) continue;
+                
+                if (this.state.insertNewMessage(msg, msg.senderID)){
+                    printDeliverMessage(msg);
+                }        
+            }
+        }
+        onViewInstalled();
+    }
+    
     protected void onViewInstalled(){
         cancelTimers();        
-        printInstallView();
-        printBufferMessages();
-
-        this.onGroupViewUpdate = false;            
-        this.state.clearBuffer();
-        this.state.clearFlush();  
-
+        clearBuffers();            
+        this.groupViewQueue = new LinkedList<>();
         getSelf().tell(new SendMessage(), getSelf());
     }
 
@@ -141,7 +163,6 @@ public class Node extends AbstractActor {
     *   sends multicast messages if it is not updating the group view
     */
     protected void onSendMessage(SendMessage msg){
-        if (onGroupViewUpdate)  return;
         
         printMulticastMessage();
         ChatMsg newMsg = new ChatMsg(
@@ -152,7 +173,7 @@ public class Node extends AbstractActor {
         multicast(newMsg);
         this.msgSeqnum += 1;
         
-        this.sendTimeout = sendSelfAsyncMessage(Network.Td/2, new SendMessage());
+        this.sendTimer = sendSelfAsyncMessage(Network.Td/2, new SendMessage());
     }
 
     /**
@@ -184,9 +205,9 @@ public class Node extends AbstractActor {
     protected void onFlushTimeout(FlushTimeout msg){}
 
     protected void cancelTimers(){
-        if (this.sendTimeout!=null){
-            this.sendTimeout.cancel();
-            this.sendTimeout = null;
+        if (this.sendTimer!=null){
+            this.sendTimer.cancel();
+            this.sendTimer = null;
         }
         List<Integer> memberList = this.state.getMemberList();
         for (Integer member: memberList){
@@ -196,6 +217,10 @@ public class Node extends AbstractActor {
                 this.flushTimeout.put(member, null);        
             }
         }
+    }
+    protected void clearBuffers(){
+        this.state.clearBuffer();
+        this.state.clearFlush(); 
     }
 
     @Override

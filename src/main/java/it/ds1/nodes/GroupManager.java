@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Queue;
 import java.util.LinkedList;
+import java.util.NoSuchElementException;
 import javafx.util.Pair;
 
 import akka.actor.Props;
@@ -15,8 +16,6 @@ import akka.actor.ActorRef;
 import akka.actor.Cancellable;
 
 public class GroupManager extends Node{
-
-    private Queue<Pair<ActorRef, Join>> joinQueue;
 
     private Map<Integer,Cancellable> messageTimeout;
 
@@ -28,77 +27,99 @@ public class GroupManager extends Node{
     @Override 
     protected void init(int id){
         super.init(id);
-        this.joinQueue = new LinkedList<>();
         this.messageTimeout = new HashMap<>();
 
-        this.state.putSelf(id, getSelf());        
-        printInstallView();
+        this.state.putMember(id, getSelf());
+        GroupView updateView = new GroupView(
+            this.state.getGroupView(), 
+            0
+        );
+        this.groupViewQueue.add(updateView);        
+        justInstallView();
     }
 
+    private void justInstallView(){
+        for(GroupView v: groupViewQueue){
+            this.state.setGroupViewSeqnum(v);
+            this.state.putAllMembers(v);            
+            printInstallView();
+        }
+        cancelTimers();        
+        clearBuffers();            
+        this.groupViewQueue = new LinkedList<>();
+    }
 
     static public Props props(int id, String remotePath) {
 		return Props.create(GroupManager.class, () -> new GroupManager(id, remotePath));
 	}
 
 	private void onJoin(Join message) {
-        if (onGroupViewUpdate==true){
-            Logging.log("join request from "+message.id+" enqueued");
-            this.joinQueue.add(new Pair(getSender(), message));
-            return;
-        }     
-        
-        this.onGroupViewUpdate = true;
-        Logging.log("join request from "+message.id);   
 
+        Logging.log("join request from "+message.id);
+        cancelTimers();
+        clearBuffers();        
 		int id = message.id;
         this.state.putMember(id, getSender());
         updateGroupView();
 	}
 
-    private void onCrashDetected(int id){
-        this.onGroupViewUpdate = true;        
+    private void updateGroupView(){
+        Integer nextGroupViewSeqnum = this.state.getGroupViewSeqnum()+1;
+        
+        try{
+            GroupView lastGroup = this.groupViewQueue.getLast();
+            nextGroupViewSeqnum = lastGroup.groupViewSeqnum+1;
+        }catch(NoSuchElementException e){}
+
+        GroupView updateView = new GroupView(
+            this.state.getGroupView(), 
+            nextGroupViewSeqnum
+        );
+        Logging.log("enqueue "+nextGroupViewSeqnum+" "+this.state.commaSeparatedList());
+        this.groupViewQueue.add(updateView);
+        multicast(updateView);
+        setFlushTimeout();                    
+        allToAll(nextGroupViewSeqnum-1, this.id);        
+    }
+
+    private void onCrashDetected(int id){     
         Logging.log("crash detected "+id);   
-
+        cancelTimers();                                   
+        clearBuffers(); 
         this.state.removeMember(id);
-
+        
         Integer groupSize = this.state.getGroupViewSize()-1;
         if (groupSize==0){
             //he is alone
-            this.state.setGroupViewSeqnum(this.state.getGroupViewSeqnum()+1);
-            cancelTimers();                                   
-            init(this.id);
+            Integer nextGroupViewSeqnum = this.state.getGroupViewSeqnum()+1;
+            
+            try{
+                GroupView lastGroup = this.groupViewQueue.getLast();
+                nextGroupViewSeqnum = lastGroup.groupViewSeqnum+1;
+            }catch(NoSuchElementException e){}
+
+            GroupView updateView = new GroupView(
+                this.state.getGroupView(), 
+                nextGroupViewSeqnum
+            );
+           
+            this.groupViewQueue.add(updateView);
+            justInstallView();            
         }       
         else{
             updateGroupView();
         } 
     }
 
-    private void updateGroupView(){
-        // this.state.printState();
-        multicast(new GroupView(
-            this.state.getGroupView(), 
-            this.state.getGroupViewSeqnum()
-        ));
-        setFlushTimeout();                    
-        allToAll(this.state.getGroupViewSeqnum(), this.id);        
-    }
+    
     @Override
-    protected void onFlushTimeout(FlushTimeout msg){
+    protected void onFlushTimeout(FlushTimeout msg){       
         Logging.log("Flush timeout for "+msg.id);
         onCrashDetected(msg.id);
         
     }
-
-    @Override
-    protected void onViewInstalled(){
-        super.onViewInstalled();
-        
-        if (this.joinQueue.size()>0){
-            Pair<ActorRef, Join> item = this.joinQueue.remove();
-            Logging.log("dequeue");
-            getSelf().tell(item.getValue(), item.getKey());        
-            return;
-        }
+    protected void onMessageTimeout(MessageTimeout msg){
+        onCrashDetected(msg.id);
     }
 
     @Override
@@ -126,16 +147,12 @@ public class GroupManager extends Node{
             }
         }
     }
+
     private void setMessageTimeout(){
         List<Integer> memberList = this.state.getMemberList();
         for (Integer member: memberList){
             this.messageTimeout.put(member, sendSelfAsyncMessage(Network.Td, new MessageTimeout(member)));                    
         }
-    }
-
-    protected void onMessageTimeout(MessageTimeout msg){
-        if (onGroupViewUpdate) return;
-        onCrashDetected(msg.id);
     }    
 
     @Override
