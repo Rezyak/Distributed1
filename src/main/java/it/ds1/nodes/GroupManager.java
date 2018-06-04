@@ -17,6 +17,7 @@ import akka.actor.Cancellable;
 
 public class GroupManager extends Node{
 
+    private Integer nodesID;
     private Map<Integer,Cancellable> messageTimeout;
 
     private GroupManager(int id, String remotePath) {
@@ -27,6 +28,8 @@ public class GroupManager extends Node{
     @Override 
     protected void init(int id){
         super.init(id);
+        
+        this.nodesID = 1;
         this.messageTimeout = new HashMap<>();
 
         this.state.putMember(id, getSelf());
@@ -39,6 +42,7 @@ public class GroupManager extends Node{
     }
 
     private void justInstallView(){
+        
         for(GroupView v: groupViewQueue){
             this.state.setGroupViewSeqnum(v);
             this.state.putAllMembers(v);            
@@ -55,11 +59,13 @@ public class GroupManager extends Node{
 
 	private void onJoin(Join message) {
 
-        Logging.log("join request from "+message.id);
+        Logging.log(this.state.getGroupViewSeqnum(),
+            "join request from "+nodesID);
         cancelTimers();
-        this.state.clearFlush();      
-		int id = message.id;
-        this.state.putMember(id, getSender());
+        this.state.clearFlush();
+        this.state.putMember(nodesID, getSender());
+        getSender().tell(new JoinID(nodesID), getSelf());
+        nodesID++;
         updateGroupView();
 	}
 
@@ -75,7 +81,8 @@ public class GroupManager extends Node{
             this.state.getGroupView(), 
             nextGroupViewSeqnum
         );
-        Logging.log("enqueue "+nextGroupViewSeqnum+" "+this.state.commaSeparatedList());
+        // Logging.log(this.state.getGroupViewSeqnum(),
+        //     "enqueue "+nextGroupViewSeqnum+" "+this.state.commaSeparatedList());
         this.groupViewQueue.add(updateView);
         multicast(updateView);
         setFlushTimeout();                    
@@ -83,7 +90,8 @@ public class GroupManager extends Node{
     }
 
     private void onCrashDetected(int id){     
-        Logging.log("crash detected "+id);   
+        // Logging.log(this.state.getGroupViewSeqnum(),
+        //     "crash detected "+id);   
         cancelTimers();                                   
         this.state.clearFlush();
         this.state.removeMember(id);
@@ -114,7 +122,8 @@ public class GroupManager extends Node{
     
     @Override
     protected void onFlushTimeout(FlushTimeout msg){       
-        Logging.log("Flush timeout for "+msg.id);
+        // Logging.log(this.state.getGroupViewSeqnum(),
+        //     "Flush timeout for "+msg.id);
         onCrashDetected(msg.id);
         
     }

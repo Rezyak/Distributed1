@@ -33,15 +33,20 @@ public class GroupMember extends Node{
 
     public void preStart() {
 		if (this.remotePath != null) {          
-			getContext().actorSelection(remotePath).tell(new Join(this.id), getSelf());
+			getContext().actorSelection(remotePath).tell(new Join(), getSelf());
 		}
 	}
     
+    private void onJoinID(JoinID message) {
+        this.id = message.id;       
+	}
+
     private void onGroupView(GroupView message) {
         this.state.clearFlush();        
         checkMessageTimeout();
 
-        Logging.log("request update group view "+message.groupViewSeqnum);
+        // Logging.log(this.state.getGroupViewSeqnum(),
+        //     "request update group view "+message.groupViewSeqnum);
         cancelTimers();         
         this.groupViewQueue.add(message);
 
@@ -67,17 +72,20 @@ public class GroupMember extends Node{
 
     @Override
     protected void onFlushTimeout(FlushTimeout msg){
-        Logging.log("Flush timeout for "+msg.id);
+        // Logging.log(this.state.getGroupViewSeqnum(),
+        //     "Flush timeout for "+msg.id);
     }
 
     protected void onMessageTimeout(MessageTimeout msg){
-        Logging.log("onTimeout");
+        // Logging.log(this.state.getGroupViewSeqnum(),
+        //     "onTimeout");
         // //stop timers and clear state
         // cancelTimers();
         // clearBuffers();
         // init(this.id);
         // //Rejoin
-        // Logging.log("rejoin");
+        // Logging.log(this.state.getGroupViewSeqnum(),
+            // "rejoin");
         // preStart();
     }    
 
@@ -95,6 +103,7 @@ public class GroupMember extends Node{
 		return this.getReceive()
             .match(GroupView.class, this::onGroupView)        
             .match(MessageTimeout.class, this::onMessageTimeout)            
+            .match(JoinID.class, this::onJoinID)            
             .build();
 	}
 }

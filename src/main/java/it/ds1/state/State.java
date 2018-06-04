@@ -78,28 +78,28 @@ public class State {
     public List<ChatMsg> getBufferMessages(){return this.messages.getBuffer();}
     public void clearBuffer(){this.messages.clearBuffer();}
 
-    public void printState(){
-        Logging.log("**************************************");
-        Logging.log("Node "+ this.nodeID +" State:");
-        Logging.log("groupView seqnum "+ getGroupViewSeqnum());
-        this.groupView.forEach(new GroupViewMap.Action<ActorRef>(){
-            @Override
-            public void perform(Integer id, ActorRef nodeRef){
-                Logging.log(id +": "+nodeRef);                
-            }
-        });
-        Logging.log("messages:");
-        this.messages.forEach(new MessageMap.Action<ChatMsg>(){
-            @Override
-            public void perform(Integer id, ChatMsg msg){
-                Logging.log(id +": ");
-                Logging.log("msg seqnum: "+msg.msgSeqnum);
-                Logging.log("msg sender id: "+msg.senderID);
-                Logging.log("msg V"+msg.groupViewSeqnum);                
-            }
-        });
-        Logging.log("**************************************");        
-    }
+    // public void printState(){
+    //     Logging.log("**************************************");
+    //     Logging.log("Node "+ this.nodeID +" State:");
+    //     Logging.log("groupView seqnum "+ getGroupViewSeqnum());
+    //     this.groupView.forEach(new GroupViewMap.Action<ActorRef>(){
+    //         @Override
+    //         public void perform(Integer id, ActorRef nodeRef){
+    //             Logging.log(id +": "+nodeRef);                
+    //         }
+    //     });
+    //     Logging.log("messages:");
+    //     this.messages.forEach(new MessageMap.Action<ChatMsg>(){
+    //         @Override
+    //         public void perform(Integer id, ChatMsg msg){
+    //             Logging.log(id +": ");
+    //             Logging.log("msg seqnum: "+msg.msgSeqnum);
+    //             Logging.log("msg sender id: "+msg.senderID);
+    //             Logging.log("msg V"+msg.groupViewSeqnum);                
+    //         }
+    //     });
+    //     Logging.log("**************************************");        
+    // }
     
     protected String commaSeparatedList(){
         List<Integer> members = getMemberList();

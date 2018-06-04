@@ -9,10 +9,10 @@ import akka.actor.ActorRef;
 
 public class Messages {
 
-    public static class Join implements Serializable {
+    public static class Join implements Serializable {}
+    public static class JoinID implements Serializable {
         final Integer id;
-
-        public Join(int id) {         
+        public JoinID(int id){
             this.id = id;
         }
     }

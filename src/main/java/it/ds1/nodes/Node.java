@@ -76,7 +76,8 @@ public class Node extends AbstractActor {
     *   send all unstable messages to all processes in the new view
     */
     protected void allToAll(Integer seqnum, Integer id){
-        Logging.log("all-to-all");
+        // Logging.log(this.state.getGroupViewSeqnum(),
+        //     "all-to-all");
         Network.delayAllToAll(seqnum, id, state, getSelf());
     } 
     
@@ -124,11 +125,13 @@ public class Node extends AbstractActor {
         Cancellable timer = this.flushTimeout.get(msg.senderID);
         if (timer!=null) timer.cancel();
 
-        Logging.log(this.id+" flush "+msg.groupViewSeqnum+" from "+msg.senderID+" within "+this.state.getGroupViewSeqnum());
+        // Logging.log(this.state.getGroupViewSeqnum(),
+        //     this.id+" flush "+msg.groupViewSeqnum+" from "+msg.senderID+" within "+this.state.getGroupViewSeqnum());
         this.state.insertFlush(msg);
         Integer flushSize = this.state.getFlushSize();
         Integer groupSize = this.state.getGroupViewSize()-1;
-        Logging.log(flushSize+" groupsize:"+groupSize+" "+this.state.commaSeparatedList());
+        // Logging.log(this.state.getGroupViewSeqnum(),
+        //     flushSize+" groupsize:"+groupSize+" "+this.state.commaSeparatedList());
         if (flushSize==groupSize){ 
             installView();     
         }
@@ -225,13 +228,16 @@ public class Node extends AbstractActor {
     public Receive createReceive() {return receiveBuilder().build();}
 
     protected void printInstallView(){
-        Logging.log(this.id+" install view "+this.state.getGroupViewSeqnum()+" "+this.state.commaSeparatedList());        
+        Logging.log(this.state.getGroupViewSeqnum(),
+            this.id+" install view "+this.state.getGroupViewSeqnum()+" "+this.state.commaSeparatedList());        
     }
     protected void printMulticastMessage(){
-        Logging.log(this.id+" send multicast "+this.msgSeqnum+" within "+this.state.getGroupViewSeqnum());
+        Logging.log(this.state.getGroupViewSeqnum(),
+            this.id+" send multicast "+this.msgSeqnum+" within "+this.state.getGroupViewSeqnum());
     }
     protected void printDeliverMessage(ChatMsg msg){
-        Logging.log(this.id+" deliver multicast "+msg.msgSeqnum+" from "+msg.senderID+" within "+this.state.getGroupViewSeqnum());
+        Logging.log(this.state.getGroupViewSeqnum(),
+            this.id+" deliver multicast "+msg.msgSeqnum+" from "+msg.senderID+" within "+this.state.getGroupViewSeqnum());
     }
     protected void printBufferMessages(){
         List<ChatMsg> buffer = this.state.getBufferMessages();

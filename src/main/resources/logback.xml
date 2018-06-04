@@ -1,0 +1,30 @@
+<configuration scan="true">
+
+    <appender name="VIEW" class="ch.qos.logback.classic.sift.SiftingAppender">
+        
+        <discriminator>
+            <key>viewn</key>
+            <defaultValue>no_view</defaultValue>
+        </discriminator>
+        <sift>
+        <appender name="VIEW${viewn}" class="ch.qos.logback.core.FileAppender">
+            <file>logs/view_${viewn}.log</file>
+            <append>true</append>
+            <layout class="ch.qos.logback.classic.PatternLayout">
+            <pattern>%msg%n</pattern>
+            </layout>
+        </appender>
+        </sift>
+    </appender>
+
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <root level="trace">
+    <appender-ref ref="VIEW" />
+    <!-- <appender-ref ref="STDOUT" /> -->
+  </root>
+</configuration>

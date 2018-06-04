@@ -79,7 +79,8 @@ public class Network {
     //                 // delay(rnd.nextInt(MAXDELAY)+1); 
     //                 // nodeRef.tell(m, self);
     //                 delay[0] += rnd.nextInt(MAXDELAY)+1; 
-    //                 Logging.log("delay "+delay[0]);
+    //                 Logging.log(this.state.getGroupViewSeqnum(),
+                        // "delay "+delay[0]);
     //                 delayUnicast(delay[0], m, nodeRef, self, context);
     //             }
                                            
