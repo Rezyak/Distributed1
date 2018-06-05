@@ -1,6 +1,0 @@
-0 install view 1 0,1
-0 send multicast 0 within 1
-1 install view 1 0,1
-1 send multicast 0 within 1
-1 deliver multicast 0 from 0 within 1
-0 deliver multicast 0 from 1 within 1
