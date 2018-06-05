@@ -100,26 +100,33 @@ public class App {
         Logging.out(debugIP+":"+debugPort);        
 
         Thread reader = new CommandReader(new Actions(){
-            @Override
             public void shutdown(){
                 Logging.out("shutting down ...");                
                 asystem.terminate();
             }
-            @Override
             public void crash(){
                 Logging.out("crashing ...");
                 receiver.tell(new Crash(), null);                                
             }
-            @Override
             public void init(){
                 Logging.out("init...");
                 receiver.tell(new Init(), null);                                
             }
-            @Override
             public void ping(){
                 Logging.out("ping...");
                 receiver.tell(new Ping(), null);
             }
+            public void McrashJoin(){}
+            public void McrashMessage(){}
+            public void McrashViewI(){}
+
+            public void crashPrestart(){}
+            public void crashJoinID(){}
+            public void crashGChange(){}
+            public void crashMessage(){}
+            public void crashMulticast(){}
+            public void crashA2A(){}
+            public void crashViewI(){}
         });
         reader.start();
 	}
@@ -129,6 +136,20 @@ public class App {
         public void shutdown();
         public void crash();
         public void init();
+
+        public void McrashJoin();
+        public void McrashMessage();
+        public void McrashViewI();
+
+        public void crashPrestart();
+        public void crashJoinID();
+        public void crashGChange();
+        public void crashMessage();
+        public void crashMulticast();
+        public void crashA2A();
+        public void crashViewI();
+
+
     }
 }
 
@@ -138,18 +159,23 @@ class CommandReader extends Thread{
 
     public CommandReader(App.Actions actions){
         this.commands = new HashMap<String, Command>(); 
-        this.commands.put("shutdown", new Command(){
-            public void call() { actions.shutdown();}
-        });
-        this.commands.put("crash", new Command(){
-            public void call() { actions.crash();}
-        }); 
-        this.commands.put("init", new Command(){
-            public void call() { actions.init();}
-        });
-        this.commands.put("ping", new Command(){
-            public void call() { actions.ping();}
-        });
+        this.commands.put("shutdown", new Command(){public void call() { actions.shutdown();}});
+        this.commands.put("crash", new Command(){public void call() { actions.crash();}}); 
+        this.commands.put("init", new Command(){public void call() { actions.init();}});
+        this.commands.put("ping", new Command(){public void call() { actions.ping();}});
+
+        this.commands.put("McrashJoin", new Command(){public void call() { actions.McrashJoin();}});
+        this.commands.put("McrashMessage", new Command(){public void call() { actions.McrashMessage();}});
+        this.commands.put("McrashViewI", new Command(){public void call() { actions.McrashViewI();}});
+
+        this.commands.put("crashPrestart", new Command(){public void call() { actions.crashPrestart();}});
+        this.commands.put("crashJoinID", new Command(){public void call() { actions.crashJoinID();}});
+        this.commands.put("crashGChange", new Command(){public void call() { actions.crashGChange();}});
+        this.commands.put("crashMessage", new Command(){public void call() { actions.crashMessage();}});
+        this.commands.put("crashMulticast", new Command(){public void call() { actions.crashMulticast();}});
+        this.commands.put("crashA2A", new Command(){public void call() { actions.crashA2A();}});
+        this.commands.put("crashViewI", new Command(){public void call() { actions.crashViewI();}});
+        
     }
     
 

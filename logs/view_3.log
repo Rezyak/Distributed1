@@ -1,0 +1,53 @@
+3 install view 3 0,1,2,3
+3 send multicast 0 within 3
+2 install view 3 0,1,2,3
+2 send multicast 1 within 3
+0 install view 3 0,1,2,3
+0 send multicast 1 within 3
+1 install view 3 0,1,2,3
+1 send multicast 2 within 3
+3 deliver multicast 2 from 1 within 3
+3 deliver multicast 1 from 2 within 3
+0 deliver multicast 0 from 3 within 3
+0 deliver multicast 1 from 2 within 3
+3 deliver multicast 1 from 0 within 3
+1 deliver multicast 1 from 0 within 3
+1 deliver multicast 0 from 3 within 3
+0 deliver multicast 2 from 1 within 3
+2 deliver multicast 0 from 3 within 3
+2 deliver multicast 1 from 0 within 3
+2 deliver multicast 2 from 1 within 3
+1 deliver multicast 1 from 2 within 3
+3 send multicast 1 within 3
+0 deliver multicast 1 from 3 within 3
+0 send multicast 2 within 3
+1 deliver multicast 2 from 0 within 3
+1 send multicast 3 within 3
+2 send multicast 2 within 3
+2 deliver multicast 1 from 3 within 3
+2 deliver multicast 2 from 0 within 3
+3 deliver multicast 2 from 2 within 3
+2 deliver multicast 3 from 1 within 3
+0 deliver multicast 2 from 2 within 3
+0 deliver multicast 3 from 1 within 3
+3 deliver multicast 2 from 0 within 3
+1 deliver multicast 1 from 3 within 3
+1 deliver multicast 2 from 2 within 3
+3 deliver multicast 3 from 1 within 3
+3 send multicast 2 within 3
+2 send multicast 3 within 3
+0 deliver multicast 2 from 3 within 3
+1 send multicast 4 within 3
+0 send multicast 3 within 3
+3 deliver multicast 3 from 2 within 3
+2 deliver multicast 2 from 3 within 3
+3 deliver multicast 3 from 0 within 3
+3 deliver multicast 4 from 1 within 3
+0 deliver multicast 4 from 1 within 3
+0 deliver multicast 3 from 2 within 3
+2 deliver multicast 3 from 0 within 3
+1 deliver multicast 2 from 3 within 3
+1 deliver multicast 3 from 2 within 3
+1 deliver multicast 3 from 0 within 3
+2 deliver multicast 4 from 1 within 3
+0 send multicast 4 within 3

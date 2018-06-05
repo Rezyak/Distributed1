@@ -88,6 +88,21 @@ public class GroupManager extends Node{
         allToAll(nextGroupViewSeqnum-1, this.id);        
     }
 
+    @Override
+    protected void onMessage(ChatMsg msg){
+        if(crashed.get()) return;
+        
+        Boolean selfMessage = msg.senderID.compareTo(this.id)==0; 
+        Boolean inGroup = this.state.isMember(msg.senderID);
+        if (selfMessage==false && inGroup){
+            Cancellable timer = this.messageTimeout.get(msg.senderID);
+            if (timer!=null) timer.cancel();
+            this.messageTimeout.put(msg.senderID, sendSelfAsyncMessage(Network.Td, new MessageTimeout(msg.senderID)));
+        }
+        
+        super.onMessage(msg);
+    }
+    
     private void onCrashDetected(int id){     
         // Logging.log(this.state.getGroupViewSeqnum(),
         //     "crash detected "+id);   
@@ -131,20 +146,6 @@ public class GroupManager extends Node{
         onCrashDetected(msg.id);
     }
 
-    @Override
-    protected void onMessage(ChatMsg msg){
-        if(crashed.get()) return;
-        
-        Boolean selfMessage = msg.senderID.compareTo(this.id)==0; 
-        Boolean inGroup = this.state.isMember(msg.senderID);
-        if (selfMessage==false && inGroup){
-            Cancellable timer = this.messageTimeout.get(msg.senderID);
-            if (timer!=null) timer.cancel();
-            this.messageTimeout.put(msg.senderID, sendSelfAsyncMessage(Network.Td, new MessageTimeout(msg.senderID)));
-        }
-        
-        super.onMessage(msg);
-    }
     @Override
     protected void onViewInstalled(){
         super.onViewInstalled();

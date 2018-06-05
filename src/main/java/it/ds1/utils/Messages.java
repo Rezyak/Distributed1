@@ -13,6 +13,19 @@ public class Messages {
     public static class Crash implements Serializable {}
     public static class Init implements Serializable {}
 
+    public static class McrashJoin implements Serializable {}
+    public static class McrashMessage implements Serializable {}
+    public static class McrashViewI implements Serializable {}
+
+    public static class CrashPrestart implements Serializable {}
+    public static class CrashJoinID implements Serializable {}
+    public static class CrashGChange implements Serializable {}
+    public static class CrashMessage implements Serializable {}
+    public static class CrashMulticast implements Serializable {}
+    public static class CrashA2A implements Serializable {}
+    public static class CrashViewI implements Serializable {}
+    
+
     public static class Join implements Serializable {}
     public static class JoinID implements Serializable {
         final Integer id;
