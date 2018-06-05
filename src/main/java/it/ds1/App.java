@@ -9,11 +9,14 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.UUID;
 import java.util.Scanner;
+import java.util.HashMap;
+import java.util.Map;
 
 import java.lang.Runnable;
 import java.lang.Thread;
 
 import java.io.IOException;
+import java.lang.NullPointerException;
 import java.net.UnknownHostException;
 import java.net.InetAddress;
 
@@ -68,13 +71,13 @@ public class App {
                 remotePath = "akka.tcp://"+remoteActorSystemName+"@" + remote_ip + ":" + remote_port+ "/user/"+remoteActorName;
 
                 String mIP = "127.0.0.1";
-                // try {
-                //     mIP = InetAddress.getLocalHost().getHostAddress();
-                //     debugIP = mIP;
-                // } catch (UnknownHostException e) {
-                //     Logging.stderr(e.getMessage());
-                //     Logging.stderr("using localhost");
-                // }
+                try {
+                    mIP = InetAddress.getLocalHost().getHostAddress();
+                    debugIP = mIP;
+                } catch (UnknownHostException e) {
+                    Logging.stderr(e.getMessage());
+                    Logging.stderr("using localhost");
+                }
                 Config mHostname = ConfigFactory.parseString("akka.remote.netty.tcp.hostname="+mIP);
                 Config mPort = ConfigFactory.parseString("akka.remote.netty.tcp.port=0");
 
@@ -94,21 +97,80 @@ public class App {
 		final ActorSystem asystem = ActorSystem.create(actorSystemName, config);
 		final ActorRef receiver = asystem.actorOf(mNode, actorName);
 
-        // Thread reader = new Thread(new CommandReader());
-        // reader.start();
-        // asystem.terminate();
+        Logging.out(debugIP+":"+debugPort);        
 
-        Logging.out(debugIP+":"+debugPort);
+        Thread reader = new CommandReader(new Actions(){
+            @Override
+            public void shutdown(){
+                Logging.out("shutting down ...");                
+                asystem.terminate();
+            }
+            @Override
+            public void crash(){
+                Logging.out("crashing ...");
+                receiver.tell(new Crash(), null);                                
+            }
+            @Override
+            public void init(){
+                Logging.out("init...");
+                receiver.tell(new Init(), null);                                
+            }
+            @Override
+            public void ping(){
+                Logging.out("ping...");
+                receiver.tell(new Ping(), null);
+            }
+        });
+        reader.start();
 	}
+
+    public interface Actions{
+        public void ping();
+        public void shutdown();
+        public void crash();
+        public void init();
+    }
 }
 
-// class CommandReader implements Runnable{  
-//     public void run(){     
-//         String command = "";
-//         while(command.equals("q")==false){
-//             Scanner scanner = new Scanner(System.in);
-//             command = scanner.next();
-//             Logging.out("command => "+command); 
-//         }  
-//     }  
-// }
+class CommandReader extends Thread{
+    
+    private Map<String, Command> commands;
+
+    public CommandReader(App.Actions actions){
+        this.commands = new HashMap<String, Command>(); 
+        this.commands.put("shutdown", new Command(){
+            public void call() { actions.shutdown();}
+        });
+        this.commands.put("crash", new Command(){
+            public void call() { actions.crash();}
+        }); 
+        this.commands.put("init", new Command(){
+            public void call() { actions.init();}
+        });
+        this.commands.put("ping", new Command(){
+            public void call() { actions.ping();}
+        });
+    }
+    
+
+    public void run(){     
+        String command = "";
+        while(true){
+            Logging.out("(q to exit) command mode >>");
+            
+            Scanner scanner = new Scanner(System.in);
+            command = scanner.next();
+            if (command.equals("q")) break;
+
+            try{
+                this.commands.get(command).call();
+            }catch(NullPointerException e){
+                Logging.out("command not found");
+            }
+        }  
+        this.commands.get("shutdown").call();
+    }  
+    public interface Command {
+        void call();
+    }
+}

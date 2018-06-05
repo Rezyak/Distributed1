@@ -16,10 +16,10 @@ import akka.actor.ActorRef;
 import akka.actor.Cancellable;
 
 public class GroupManager extends Node{
+    private static Integer mView = 0;
+    private static Integer nodesID = 1;
 
-    private Integer nodesID;
     private Map<Integer,Cancellable> messageTimeout;
-
     private GroupManager(int id, String remotePath) {
         super(id, remotePath);
        
@@ -28,14 +28,12 @@ public class GroupManager extends Node{
     @Override 
     protected void init(int id){
         super.init(id);
-        
-        this.nodesID = 1;
         this.messageTimeout = new HashMap<>();
 
         this.state.putMember(id, getSelf());
         GroupView updateView = new GroupView(
             this.state.getGroupView(), 
-            0
+            mView
         );
         this.groupViewQueue.add(updateView);        
         justInstallView();
@@ -58,9 +56,10 @@ public class GroupManager extends Node{
 	}
 
 	private void onJoin(Join message) {
+        if(crashed.get()) return;
 
-        Logging.log(this.state.getGroupViewSeqnum(),
-            "join request from "+nodesID);
+        // Logging.log(this.state.getGroupViewSeqnum(),
+        //     "join request from "+nodesID);
         cancelTimers();
         this.state.clearFlush();
         this.state.putMember(nodesID, getSender());
@@ -121,7 +120,8 @@ public class GroupManager extends Node{
 
     
     @Override
-    protected void onFlushTimeout(FlushTimeout msg){       
+    protected void onFlushTimeout(FlushTimeout msg){    
+        super.onFlushTimeout(msg);   
         // Logging.log(this.state.getGroupViewSeqnum(),
         //     "Flush timeout for "+msg.id);
         onCrashDetected(msg.id);
@@ -133,6 +133,8 @@ public class GroupManager extends Node{
 
     @Override
     protected void onMessage(ChatMsg msg){
+        if(crashed.get()) return;
+        
         Boolean selfMessage = msg.senderID.compareTo(this.id)==0; 
         Boolean inGroup = this.state.isMember(msg.senderID);
         if (selfMessage==false && inGroup){
@@ -143,7 +145,24 @@ public class GroupManager extends Node{
         
         super.onMessage(msg);
     }
-   
+    @Override
+    protected void onViewInstalled(){
+        super.onViewInstalled();
+        setMessageTimeout();
+    }
+
+   @Override    
+    protected void onInit(Init msg){
+        Integer nextGroupViewSeqnum = this.state.getGroupViewSeqnum()+1;
+            
+        try{
+            GroupView lastGroup = this.groupViewQueue.getLast();
+            nextGroupViewSeqnum = lastGroup.groupViewSeqnum+1;
+        }catch(NoSuchElementException e){}
+
+        this.mView = nextGroupViewSeqnum;
+        init(0);
+    }
     @Override
     protected void cancelTimers(){
         super.cancelTimers();
@@ -160,6 +179,7 @@ public class GroupManager extends Node{
     private void setMessageTimeout(){
         List<Integer> memberList = this.state.getMemberList();
         for (Integer member: memberList){
+            if (member==this.id) continue;
             this.messageTimeout.put(member, sendSelfAsyncMessage(Network.Td, new MessageTimeout(member)));                    
         }
     }    

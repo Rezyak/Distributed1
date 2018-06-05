@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.Deque;
 import java.util.LinkedList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import akka.actor.AbstractActor;
 import akka.japi.pf.ReceiveBuilder;
@@ -34,6 +35,7 @@ public class Node extends AbstractActor {
     private Map<Integer,Cancellable> flushTimeout;
 
     protected Deque<GroupView> groupViewQueue;
+    protected AtomicBoolean crashed;
 
 	protected Node(int id, String remotePath) {
 		this.id = id;
@@ -43,7 +45,7 @@ public class Node extends AbstractActor {
     
     protected void init(int id){
         this.state = new State(id);
-
+        this.crashed = new AtomicBoolean();
         this.msgSeqnum = 0;  
 
         this.sendTimer = null;
@@ -90,8 +92,13 @@ public class Node extends AbstractActor {
     *   -   insert the incoming message in a map, deliver it only if it is not a dupplicate
     */
     protected void onMessage(ChatMsg msg){
+        if(crashed.get()) return;
+
         Boolean noGroupView = this.state.getGroupViewSeqnum()==null;
-        if (noGroupView) return;
+        if (noGroupView){
+            this.state.addBuffer(msg);
+            return;            
+        };
         
         Boolean selfMessage = msg.senderID.compareTo(this.id)==0; 
         if(selfMessage) return;
@@ -114,6 +121,7 @@ public class Node extends AbstractActor {
     *   -   start multicast
     */
     protected void onFlush(Flush msg){
+        if(crashed.get()) return;
 
         Boolean selfMessage = msg.senderID.compareTo(this.id)==0; 
         if (selfMessage) return;
@@ -146,7 +154,8 @@ public class Node extends AbstractActor {
             List<ChatMsg> buffer = this.state.getBufferMessages();
             for(ChatMsg msg :buffer){
                 Boolean notYet = msg.groupViewSeqnum>this.state.getGroupViewSeqnum();
-                if(notYet) continue;
+                Boolean beforeView = msg.groupViewSeqnum<this.state.getGroupViewSeqnum();
+                if(notYet || beforeView) continue;
                 
                 if (this.state.insertNewMessage(msg, msg.senderID)){
                     printDeliverMessage(msg);
@@ -181,15 +190,16 @@ public class Node extends AbstractActor {
         this.sendTimer = sendSelfAsyncMessage(Network.Td/2, new SendMessage());
     }
 
-    /**
-    *   create the ReceiveBuilder class with matches that will be inherited
-    */
-    protected ReceiveBuilder getReceive(){
-        return receiveBuilder()
-            .match(ChatMsg.class, this::onMessage)
-            .match(Flush.class, this::onFlush)
-            .match(SendMessage.class, this::onSendMessage)
-            .match(FlushTimeout.class, this::onFlushTimeout);
+    protected void onPing(Ping msg){
+        Logging.out("pong");
+    }
+    protected void onCrash(Crash msg){
+        this.crashed.set(true);
+        Logging.out(this.id+" crashed");
+        cancelTimers();
+    }
+    protected void onInit(Init msg){
+        Logging.out("join request to "+remotePath);
     }
 
     protected void setFlushTimeout(){
@@ -207,7 +217,9 @@ public class Node extends AbstractActor {
         }
     }
 
-    protected void onFlushTimeout(FlushTimeout msg){}
+    protected void onFlushTimeout(FlushTimeout msg){
+        if(crashed.get()) return;        
+    }
 
     protected void cancelTimers(){
         if (this.sendTimer!=null){
@@ -224,6 +236,19 @@ public class Node extends AbstractActor {
         }
     }
 
+    /**
+    *   create the ReceiveBuilder class with matches that will be inherited
+    */
+    protected ReceiveBuilder getReceive(){
+        return receiveBuilder()
+            .match(ChatMsg.class, this::onMessage)
+            .match(Flush.class, this::onFlush)
+            .match(SendMessage.class, this::onSendMessage)
+            .match(FlushTimeout.class, this::onFlushTimeout)
+            .match(Ping.class, this::onPing)
+            .match(Crash.class, this::onCrash)
+            .match(Init.class, this::onInit);
+    }
     @Override
     public Receive createReceive() {return receiveBuilder().build();}
 

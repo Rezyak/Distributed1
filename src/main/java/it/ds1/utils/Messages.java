@@ -9,6 +9,10 @@ import akka.actor.ActorRef;
 
 public class Messages {
 
+    public static class Ping implements Serializable {}
+    public static class Crash implements Serializable {}
+    public static class Init implements Serializable {}
+
     public static class Join implements Serializable {}
     public static class JoinID implements Serializable {
         final Integer id;

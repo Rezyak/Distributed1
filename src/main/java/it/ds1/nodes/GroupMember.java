@@ -34,17 +34,22 @@ public class GroupMember extends Node{
     public void preStart() {
 		if (this.remotePath != null) {          
 			getContext().actorSelection(remotePath).tell(new Join(), getSelf());
+            checkMessageTimeout();        
 		}
 	}
     
     private void onJoinID(JoinID message) {
-        this.id = message.id;       
+        if(crashed.get()) return;
+        
+        this.id = message.id; 
+        checkMessageTimeout();
 	}
 
     private void onGroupView(GroupView message) {
+        if(crashed.get()) return;
+        
         this.state.clearFlush();        
         checkMessageTimeout();
-
         // Logging.log(this.state.getGroupViewSeqnum(),
         //     "request update group view "+message.groupViewSeqnum);
         cancelTimers();         
@@ -59,6 +64,8 @@ public class GroupMember extends Node{
 
     @Override
     protected void onMessage(ChatMsg msg){
+        if(crashed.get()) return;
+        
         if (msg.senderID.compareTo(0)==0){
             checkMessageTimeout();
         }
@@ -72,23 +79,26 @@ public class GroupMember extends Node{
 
     @Override
     protected void onFlushTimeout(FlushTimeout msg){
+        super.onFlushTimeout(msg);
         // Logging.log(this.state.getGroupViewSeqnum(),
         //     "Flush timeout for "+msg.id);
     }
 
     protected void onMessageTimeout(MessageTimeout msg){
-        // Logging.log(this.state.getGroupViewSeqnum(),
-        //     "onTimeout");
-        // //stop timers and clear state
-        // cancelTimers();
-        // clearBuffers();
-        // init(this.id);
-        // //Rejoin
-        // Logging.log(this.state.getGroupViewSeqnum(),
-            // "rejoin");
-        // preStart();
-    }    
-
+        Logging.out("onTimeout");
+        //stop timers and clear state
+        cancelTimers();
+        init(-1);
+        //Rejoin
+        Logging.out("rejoin request");
+        preStart();
+    }
+    @Override    
+    protected void onInit(Init msg){
+        super.onInit(msg);
+        init(-1);        
+        preStart();
+    }
     @Override
     protected void cancelTimers(){
         super.cancelTimers();
