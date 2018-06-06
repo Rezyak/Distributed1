@@ -1,5 +1,6 @@
 package it.ds1;
 import static it.ds1.Messages.*;
+import it.ds1.Commands;
 import it.ds1.State;
 import it.ds1.Network;
 
@@ -35,17 +36,24 @@ public class Node extends AbstractActor {
     private Map<Integer,Cancellable> flushTimeout;
 
     protected Deque<GroupView> groupViewQueue;
-    protected AtomicBoolean crashed;
+    protected Map<String, AtomicBoolean> atomicMap;
 
 	protected Node(int id, String remotePath) {
 		this.id = id;
 		this.remotePath = remotePath;
-        this.init(id);      
+        this.init(id); 
+
+        atomicMap = new HashMap<>();
+        atomicMap.put(Commands.crash, new AtomicBoolean());             
+        atomicMap.put(Commands.crashMessage, new AtomicBoolean());             
+        atomicMap.put(Commands.crashMulticast, new AtomicBoolean());             
+        atomicMap.put(Commands.crashA2A, new AtomicBoolean());             
+        atomicMap.put(Commands.crashViewI, new AtomicBoolean());             
 	}
     
     protected void init(int id){
         this.state = new State(id);
-        this.crashed = new AtomicBoolean();
+
         this.msgSeqnum = 0;  
 
         this.sendTimer = null;
@@ -70,7 +78,14 @@ public class Node extends AbstractActor {
     *   each node can perform a multicast call given a message m
     */
     protected void multicast(Serializable m) {
-        Network.delayMulticast(m, this.state, getSelf());
+        if (atomicMap.get(Commands.crashMulticast).compareAndSet(true, false)){
+            onCrash(new Crash());
+        }
+        Network.delayMulticast(m, this.state, getSelf(), new Network.Action(){
+            public Boolean shouldCrash(){
+                return atomicMap.get(Commands.crash).get();
+            }
+        });
         // Network.multicast(m, this.state, getSelf());
     }
 
@@ -80,7 +95,15 @@ public class Node extends AbstractActor {
     protected void allToAll(Integer seqnum, Integer id){
         // Logging.log(this.state.getGroupViewSeqnum(),
         //     "all-to-all");
-        Network.delayAllToAll(seqnum, id, state, getSelf());
+        if (atomicMap.get(Commands.crashA2A).compareAndSet(true, false)){
+            onCrash(new Crash());
+        }
+        
+        Network.delayAllToAll(seqnum, id, state, getSelf(), new Network.Action(){
+            public Boolean shouldCrash(){
+                return atomicMap.get(Commands.crash).get();
+            }
+        });
     } 
     
     /**
@@ -92,8 +115,11 @@ public class Node extends AbstractActor {
     *   -   insert the incoming message in a map, deliver it only if it is not a dupplicate
     */
     protected void onMessage(ChatMsg msg){
-        if(crashed.get()) return;
-
+        if(atomicMap.get(Commands.crash).get()) return;
+        if(atomicMap.get(Commands.crashMessage).compareAndSet(true, false)){
+            onCrash(new Crash());
+            return;
+        }
         Boolean noGroupView = this.state.getGroupViewSeqnum()==null;
         if (noGroupView){
             this.state.addBuffer(msg);
@@ -121,7 +147,7 @@ public class Node extends AbstractActor {
     *   -   start multicast
     */
     protected void onFlush(Flush msg){
-        if(crashed.get()) return;
+        if(atomicMap.get(Commands.crash).get()) return;
 
         Boolean selfMessage = msg.senderID.compareTo(this.id)==0; 
         if (selfMessage) return;
@@ -170,6 +196,11 @@ public class Node extends AbstractActor {
         this.state.clearFlush();        
              
         this.groupViewQueue = new LinkedList<>();
+
+        if(atomicMap.get(Commands.crashViewI).compareAndSet(true, false)){
+            onCrash(new Crash());
+            return;
+        }
         getSelf().tell(new SendMessage(), getSelf());
     }
 
@@ -177,7 +208,6 @@ public class Node extends AbstractActor {
     *   sends multicast messages if it is not updating the group view
     */
     protected void onSendMessage(SendMessage msg){
-        
         printMulticastMessage();
         ChatMsg newMsg = new ChatMsg(
             this.msgSeqnum,
@@ -185,6 +215,8 @@ public class Node extends AbstractActor {
             this.state.getGroupViewSeqnum()
         );
         multicast(newMsg);
+        if(atomicMap.get(Commands.crash).get()) return;
+
         this.msgSeqnum += 1;
         
         this.sendTimer = sendSelfAsyncMessage(Network.Td/2, new SendMessage());
@@ -193,13 +225,31 @@ public class Node extends AbstractActor {
     protected void onPing(Ping msg){
         Logging.out("pong");
     }
+
     protected void onCrash(Crash msg){
-        this.crashed.set(true);
+        atomicMap.get(Commands.crash).set(true);
+        cancelTimers();        
         Logging.out(this.id+" crashed");
-        cancelTimers();
     }
     protected void onInit(Init msg){
+        atomicMap.get(Commands.crash).set(false);        
         Logging.out("join request to "+remotePath);
+    }
+    protected void onCrashMessage(CrashMessage msg){
+        atomicMap.get(Commands.crashMessage).set(true);        
+        Logging.out("crash during next message receive...");
+    }
+    protected void onCrashMulticast(CrashMulticast msg){
+        atomicMap.get(Commands.crashMulticast).set(true);        
+        Logging.out("crash during next multicast send...");
+    }
+    protected void onCrashA2A(CrashA2A msg){
+        atomicMap.get(Commands.crashA2A).set(true);        
+        Logging.out("crash during next all-to-all...");
+    }
+    protected void onCrashViewI(CrashViewI msg){
+        atomicMap.get(Commands.crashViewI).set(true);        
+        Logging.out("crash during next intall view...");
     }
 
     protected void setFlushTimeout(){
@@ -218,7 +268,7 @@ public class Node extends AbstractActor {
     }
 
     protected void onFlushTimeout(FlushTimeout msg){
-        if(crashed.get()) return;        
+        if(atomicMap.get(Commands.crash).get()) return;        
     }
 
     protected void cancelTimers(){
@@ -247,6 +297,10 @@ public class Node extends AbstractActor {
             .match(FlushTimeout.class, this::onFlushTimeout)
             .match(Ping.class, this::onPing)
             .match(Crash.class, this::onCrash)
+            .match(CrashMessage.class, this::onCrashMessage)
+            .match(CrashMulticast.class, this::onCrashMulticast)
+            .match(CrashA2A.class, this::onCrashA2A)
+            .match(CrashViewI.class, this::onCrashViewI)
             .match(Init.class, this::onInit);
     }
     @Override

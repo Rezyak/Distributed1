@@ -28,6 +28,7 @@ public class State {
     public Integer getGroupViewSize(){
         return getMemberList().size();
     }
+
     public void setGroupViewSeqnum(GroupView msg){
         this.groupView.setSeqnum(msg.groupViewSeqnum);
     }
@@ -41,6 +42,9 @@ public class State {
 
     public void putMember(Integer id, ActorRef nodeRef){
 		this.groupView.putMember(id, nodeRef);        
+    }
+    public ActorRef getMember(Integer id){
+        return this.groupView.getMember(id);
     }
     public void removeMember(Integer id){
 		this.groupView.removeMember(id);        

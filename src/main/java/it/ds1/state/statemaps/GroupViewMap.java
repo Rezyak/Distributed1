@@ -30,6 +30,9 @@ public class GroupViewMap extends Iterable<ActorRef>{
     public void removeMember(Integer id){
         this.map.remove(id);  
     }
+    public ActorRef getMember(Integer id){
+        return this.map.get(id);
+    }
 
     public void putAllMember(Map<Integer, ActorRef> members){
         this.map = new HashMap<>();
