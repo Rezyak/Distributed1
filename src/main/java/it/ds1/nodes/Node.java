@@ -26,7 +26,7 @@ import scala.concurrent.duration.Duration;
 
 public class Node extends AbstractActor {
 
-	protected Integer id;           //node id
+	protected int id;           //node id
 	protected String remotePath;    //remote path to the groupManager
     protected State state;          //state object of the node
 
@@ -136,7 +136,7 @@ public class Node extends AbstractActor {
             return;
         }
         
-        Boolean selfMessage = msg.senderID.compareTo(this.id)==0; 
+        Boolean selfMessage = msg.senderID.intValue() == this.id; 
         if(selfMessage) return;
 
         Boolean noGroupView = this.state.getGroupViewSeqnum()==null;
@@ -145,7 +145,7 @@ public class Node extends AbstractActor {
             return;            
         };
         
-        Boolean notYet = msg.groupViewSeqnum>this.state.getGroupViewSeqnum();
+        Boolean notYet = msg.groupViewSeqnum.intValue()>this.state.getGroupViewSeqnum().intValue();
         if (notYet){
             this.state.addBuffer(msg);
             return;
@@ -168,7 +168,7 @@ public class Node extends AbstractActor {
         if(atomicMap.get(Commands.crash).get()) return;
         if(atomicMap.get(Commands.isolate).get()) return;        
 
-        Boolean selfMessage = msg.senderID.compareTo(this.id)==0; 
+        Boolean selfMessage = msg.senderID..intValue() == this.id; 
         if (selfMessage) return;
         
         Boolean inGroup = this.state.isMember(msg.senderID);
@@ -181,7 +181,7 @@ public class Node extends AbstractActor {
         this.state.insertFlush(msg);
         Integer flushSize = this.state.getFlushSize();
         Integer groupSize = this.state.getGroupViewSize()-1;
-        if (flushSize==groupSize){ 
+        if (flushSize.intValue()==groupSize.intValue()){ 
             installView();     
         }
     }
@@ -189,7 +189,7 @@ public class Node extends AbstractActor {
     protected void installView(){
         Boolean hasGroupView = this.state.getGroupViewSeqnum()!=null;
         if (hasGroupView) printBufferMessages();
-        
+
         for(GroupView v: groupViewQueue){
             this.state.setGroupViewSeqnum(v);
             this.state.putAllMembers(v);
@@ -275,7 +275,7 @@ public class Node extends AbstractActor {
     protected void setFlushTimeout(){
         List<Integer> memberList = this.state.getMemberList();
         for (Integer member: memberList){
-            if (member.compareTo(this.id)==0) continue;
+            if (member.intValue() == this.id) continue;
 
             Cancellable timer = this.flushTimeout.get(member);
             if (timer!=null){
@@ -346,13 +346,12 @@ public class Node extends AbstractActor {
         // print messages received during flash before view install
         List<ChatMsg> buffer = this.state.getBufferMessages();
         for(ChatMsg msg :buffer){
-            Boolean notYet = msg.groupViewSeqnum>this.state.getGroupViewSeqnum();
-            Boolean beforeView = msg.groupViewSeqnum<this.state.getGroupViewSeqnum();
-            if(notYet || beforeView) continue;
-            
-            if (this.state.insertNewMessage(msg, msg.senderID)){
-                printDeliverMessage(msg);
-            }        
+            Boolean isInView = msg.groupViewSeqnum.intValue() == this.state.getGroupViewSeqnum().intValue();
+            if(isInView){
+                if (this.state.insertNewMessage(msg, msg.senderID)){
+                    printDeliverMessage(msg);
+                } 
+            }       
         }
     }
 }

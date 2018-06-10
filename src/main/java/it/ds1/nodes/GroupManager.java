@@ -129,7 +129,7 @@ public class GroupManager extends Node{
         if(atomicMap.get(Commands.McrashMessage).compareAndSet(true, false)) sendRandom(new Crash());
         if(atomicMap.get(Commands.joinOnMessage).compareAndSet(true, false)) createLocalNode();        
         
-        Boolean selfMessage = msg.senderID.compareTo(this.id)==0; 
+        Boolean selfMessage = msg.senderID.intValue() == this.id; 
         Boolean inGroup = this.state.isMember(msg.senderID);
         if (selfMessage==false && inGroup){
             setMessageTimeout(msg.senderID);
@@ -147,7 +147,7 @@ public class GroupManager extends Node{
         this.state.removeMember(id);
         
         Integer groupSize = this.state.getGroupViewSize()-1;
-        if (groupSize==0){
+        if (groupSize.intValue()==0){
             //he is alone
             Integer nextGroupViewSeqnum = this.state.getGroupViewSeqnum()+1;
             
@@ -196,7 +196,7 @@ public class GroupManager extends Node{
         
         List<Integer> memberList = this.state.getMemberList();
         for (Integer member: memberList){
-            if (member.compareTo(0)!=0){
+            if (member.intValue()!=0){
                 setMessageTimeout(member);
             }
         }
@@ -262,7 +262,7 @@ public class GroupManager extends Node{
     private void sendRandom(Serializable m){
         List<Integer> memberList = this.state.getMemberList();
         Integer members = memberList.size();
-        if (members<2){
+        if (members.intValue()<2){
             Logging.out("Not enough members");
             return;
         }

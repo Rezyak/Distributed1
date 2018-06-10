@@ -54,7 +54,7 @@ public class Network {
             public void perform(Integer id, ActorRef nodeRef){            
                 if (self.compareTo(nodeRef)!=0){
 
-                    if (sent[0]>=threshold){
+                    if (sent[0]>=threshold.intValue()){
                         if (action!=null && action.shouldCrash()) return;
                     }
                     delay(rnd.nextInt(MAXDELAY)+1); 
