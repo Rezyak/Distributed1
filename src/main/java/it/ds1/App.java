@@ -291,6 +291,8 @@ class CommandReader extends Thread{
                     for(Integer j=0; j<5; j++){
                         Boolean createNode = Math.random() <0.85;
                         Boolean crashNode = Math.random() <0.6;
+                        int[] _i = {i};
+                        int[] _j = {j};
                                                 
                         if (createNode){
                             Logging.out("creating node "+nodeid[0]+"...");
@@ -304,7 +306,7 @@ class CommandReader extends Thread{
                                         Logging.out("killing a node...");                            
                                         receiver.tell(new CrashRandom(), null);
                                     }  
-                                    Boolean last = i==1 && j==4;
+                                    Boolean last = _i[0]==1 && _j[0]==4;
                                     if (last) Logging.out("====> TEST DONE run <node evaluation.js>");
                                 }
                             };
