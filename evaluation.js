@@ -8,16 +8,16 @@ try{
     fs.readdirSync(logs).forEach(file => {
         let file_path = logs+file
         let viewn = file.match(/^[a-z]+\_[0-9]+/)
-        if (viewn === null) continue
-        
-        viewn = viewn[0] 
-        let view_name = viewn.replace('_', ' ')
-        let view_num = view_name.match(/[0-9]+/)[0]   
-         
-        let lines = fs.readFileSync(file_path, 'utf-8')
-            .split('\n')
-            .filter(Boolean)
-        viewList.push({file, view_name, view_num, lines})
+        if (viewn !== null){
+            viewn = viewn[0] 
+            let view_name = viewn.replace('_', ' ')
+            let view_num = view_name.match(/[0-9]+/)[0]   
+             
+            let lines = fs.readFileSync(file_path, 'utf-8')
+                .split('\n')
+                .filter(Boolean)
+            viewList.push({file, view_name, view_num, lines})
+        }
     })
     
     viewList.sort(function(a, b) {
