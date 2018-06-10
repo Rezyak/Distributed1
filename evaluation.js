@@ -95,7 +95,7 @@ function checkInstallView(view, lines_by_id,  members){
     for (let member of members){
         let index = 0
         // skip all-to-all actions
-        for (let action of lines_by_id[members]){
+        for (let action of lines_by_id[member]){
             let all2all = action.match(/all-to-all/)
             if (all2all===null) break
             index++
