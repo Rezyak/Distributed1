@@ -250,6 +250,11 @@ public class GroupManager extends Node{
         Logging.out("creating a local node join during next install view...");
     }
 
+
+    private void onCrashRandom(CrashRandom msg){
+        sendRandom(new Crash());
+    }
+
     private void createLocalNode(){
         Logging.out("creating node...");
         App.createLocalMember();
@@ -302,6 +307,7 @@ public class GroupManager extends Node{
             .match(JoinOnMulticast.class, this::onJoinOnMulticast)            
             .match(JoinOnMessage.class, this::onJoinOnMessage)            
             .match(JoinOnViewI.class, this::onJoinOnViewI)                        
+            .match(CrashRandom.class, this::onCrashRandom)                        
             .build();
 	}
 }

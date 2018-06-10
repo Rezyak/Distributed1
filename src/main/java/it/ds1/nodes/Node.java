@@ -189,26 +189,17 @@ public class Node extends AbstractActor {
     protected void installView(){
         for(GroupView v: groupViewQueue){
             Boolean hasGroupView = this.state.getGroupViewSeqnum()!=null;
-            if (hasGroupView){
-                // print messages received during flash before view install
-                List<ChatMsg> buffer = this.state.getBufferMessages();
-                for(ChatMsg msg :buffer){
-                    Boolean notYet = msg.groupViewSeqnum>this.state.getGroupViewSeqnum();
-                    Boolean beforeView = msg.groupViewSeqnum<this.state.getGroupViewSeqnum();
-                    if(notYet || beforeView) continue;
-                    
-                    if (this.state.insertNewMessage(msg, msg.senderID)){
-                        printDeliverMessage(msg);
-                    }        
-                }
-            }
+            if (hasGroupView) printBufferMessages();
 
             this.state.setGroupViewSeqnum(v);
             this.state.putAllMembers(v);
+            printBufferMessages();
+            
             printInstallView();
         }
         onViewInstalled();
     }
+
     
     protected void onViewInstalled(){
         cancelTimers();   
@@ -352,8 +343,13 @@ public class Node extends AbstractActor {
             this.id+" deliver multicast "+msg.msgSeqnum+" from "+msg.senderID+" within "+this.state.getGroupViewSeqnum());
     }
     protected void printBufferMessages(){
+        // print messages received during flash before view install
         List<ChatMsg> buffer = this.state.getBufferMessages();
         for(ChatMsg msg :buffer){
+            Boolean notYet = msg.groupViewSeqnum>this.state.getGroupViewSeqnum();
+            Boolean beforeView = msg.groupViewSeqnum<this.state.getGroupViewSeqnum();
+            if(notYet || beforeView) continue;
+            
             if (this.state.insertNewMessage(msg, msg.senderID)){
                 printDeliverMessage(msg);
             }        

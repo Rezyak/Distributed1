@@ -27,7 +27,7 @@ public class Network {
         public Boolean shouldCrash();
     }
 
-    private static void delay(int d) {
+    public static void delay(int d) {
       try {Thread.sleep(d);} catch (Exception e) {e.printStackTrace();}
     }
 

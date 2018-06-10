@@ -28,6 +28,8 @@ public class Messages {
     public static class CrashMulticast implements Serializable {}
     public static class CrashA2A implements Serializable {}
     public static class CrashViewI implements Serializable {}
+
+    public static class CrashRandom implements Serializable {}
     
     public static class Isolate implements Serializable {}
     public static class Attach implements Serializable {}

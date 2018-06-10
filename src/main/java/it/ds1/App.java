@@ -12,9 +12,11 @@ import java.util.UUID;
 import java.util.Scanner;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 
 import java.lang.Runnable;
 import java.lang.Thread;
+import java.lang.Math;
 
 import java.io.IOException;
 import java.lang.NullPointerException;
@@ -276,6 +278,31 @@ class CommandReader extends Thread{
                 for (int l=0; l<lines; l++ ) {
                     Logging.out("");
                 }
+            }
+        });
+
+        commands.put(Commands.TEST, new Command(){
+            public void call() { 
+                Logging.out("****Starting TEST****");
+                Random rnd = new Random();
+                
+                for (Integer i=0; i<10; i++){
+                    for(Integer j=0; j<=10; j++){
+                        Boolean createNode = Math.random() <0.85;
+                        Boolean crashNode = Math.random() <0.6;
+                                                
+                        if (createNode){
+                            Logging.out("creating node...");
+                            App.createLocalMember();                                                    
+                        } 
+                        if (crashNode){
+                            Logging.out("killing a node...");                            
+                            receiver.tell(new CrashRandom(), null);
+                        }
+                        Network.delay(rnd.nextInt(100));                        
+                    }                
+                }
+                Logging.out("====> TEST DONE run <node evaluation.js>");                
             }
         });
     }

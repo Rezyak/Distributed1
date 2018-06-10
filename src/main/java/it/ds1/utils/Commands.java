@@ -27,5 +27,7 @@ class Commands{
 
     public final static String help = "help";
     public final static String clear = "clear";
+
+    public final static String TEST = "TEST";
     
 }

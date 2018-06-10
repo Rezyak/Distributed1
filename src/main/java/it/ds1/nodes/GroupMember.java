@@ -128,12 +128,12 @@ public class GroupMember extends Node{
     }
 
     protected void onMessageTimeout(MessageTimeout msg){
-        Logging.out("onTimeout");
+        Logging.out(this.id+" onTimeout");
         //stop timers and clear state
         cancelTimers();
         init(-1);
         //Rejoin
-        Logging.out("rejoin request");
+        Logging.out(this.id+" rejoin request");
         preStart();
     }
     @Override    
