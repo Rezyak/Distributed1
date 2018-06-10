@@ -145,8 +145,8 @@ public class Node extends AbstractActor {
             return;            
         };
         
-        Boolean notYet = msg.groupViewSeqnum.intValue()>this.state.getGroupViewSeqnum().intValue();
-        if (notYet){
+        Boolean notInView = msg.groupViewSeqnum.intValue()!=this.state.getGroupViewSeqnum().intValue();
+        if (notInView){
             this.state.addBuffer(msg);
             return;
         }
@@ -204,7 +204,7 @@ public class Node extends AbstractActor {
     protected void onViewInstalled(){
         cancelTimers();   
         this.state.clearFlush();        
-             
+        this.state.clearBuffer();
         this.groupViewQueue = new LinkedList<>();
 
         if(atomicMap.get(Commands.crashViewI).compareAndSet(true, false)){
