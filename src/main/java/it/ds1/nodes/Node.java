@@ -168,7 +168,7 @@ public class Node extends AbstractActor {
         if(atomicMap.get(Commands.crash).get()) return;
         if(atomicMap.get(Commands.isolate).get()) return;        
 
-        Boolean selfMessage = msg.senderID..intValue() == this.id; 
+        Boolean selfMessage = msg.senderID.intValue() == this.id; 
         if (selfMessage) return;
         
         Boolean inGroup = this.state.isMember(msg.senderID);
