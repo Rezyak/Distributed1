@@ -32,71 +32,47 @@ public class App {
 	private static String remotePath = null;
     private static final Integer remoteID = 0;
 
-    private static String debugIP="127.0.0.1";
-    private static Integer debugPort=0;
+    private static String remoteActorSystemName = "DistributedChat_"+remoteID;
+    private static String remoteActorName = "node_"+remoteID;
+    
+    private static ActorSystem asystem = null;
+    private static ActorRef receiver = null;
 
 	public static void main(String[] args) {
         
-        Boolean manager = false;
-        if (args.length>0)  manager = true;
+        // if project.hasProperty('manager') from gradle then start manager node
+        Boolean manager = (args.length>0)? true: false;
+        Config config = getConfiguration();
         
-        if (manager) Logging.out("MANAGER");
-        else Logging.out("MEMBER");
-        
-		Config config = ConfigFactory.load();
-
-        Props mNode = null;
+        Props mNode = null;        
         String uuid = UUID.randomUUID().toString();
-
-        String remoteActorSystemName = "DistributedChat_"+remoteID;
-        String remoteActorName = "node_"+remoteID;
         String actorSystemName = "DistributedChat_"+uuid;
         String actorName = "node_"+uuid;
 
-        if (manager){  
+        if (manager){
+            Logging.out("MANAGER");
             actorSystemName = remoteActorSystemName;
             actorName = remoteActorName;
 
-			mNode = GroupManager.props(
+            mNode = GroupManager.props(
                 remoteID, 
                 remotePath
             );
-
-            debugIP = config.getString("nodeapp.remote_ip");
-            debugPort = config.getInt("nodeapp.remote_port");
-        }else{
-            if (config.hasPath("nodeapp.remote_ip")) {
-                String remote_ip = config.getString("nodeapp.remote_ip");
-                int remote_port = config.getInt("nodeapp.remote_port");
-
-                remotePath = "akka.tcp://"+remoteActorSystemName+"@" + remote_ip + ":" + remote_port+ "/user/"+remoteActorName;
-
-                String mIP = "127.0.0.1";
-                try {
-                    mIP = InetAddress.getLocalHost().getHostAddress();
-                    debugIP = mIP;
-                } catch (UnknownHostException e) {
-                    Logging.stderr(e.getMessage());
-                    Logging.stderr("using localhost");
-                }
-                Config mHostname = ConfigFactory.parseString("akka.remote.netty.tcp.hostname="+mIP);
-                Config mPort = ConfigFactory.parseString("akka.remote.netty.tcp.port=0");
-
-                Config combinedHostname = mHostname.withFallback(config);
-                Config combinedPort = mPort.withFallback(combinedHostname);
-                config = ConfigFactory.load(combinedPort);
-
-            }else{
-                Logging.stderr("no romete address found in config file");
-            }
+        } 
+        else{
+            Logging.out("MEMBER");
+            config = createMemberConfig(config);
             mNode = GroupMember.props(
                 -1,
                 remotePath
-            );            
-        }
+            );    
+        }                    
 
-		final ActorSystem asystem = ActorSystem.create(actorSystemName, config);
-		final ActorRef receiver = asystem.actorOf(mNode, actorName);
+		asystem = ActorSystem.create(actorSystemName, config);
+		receiver = asystem.actorOf(mNode, actorName);
+
+        String debugIP = config.getString("akka.remote.netty.tcp.hostname");
+        Integer debugPort = config.getInt("akka.remote.netty.tcp.port");
 
         Logging.out(debugIP+":"+debugPort);  
         Logging.out("-> help to list commands");              
@@ -105,11 +81,73 @@ public class App {
         Thread reader = new CommandReader(asystem, receiver, manager);        
         reader.start();
 	}
+
+    /**
+    *   gets configuration from resources/application.conf
+    */
+    private static Config getConfiguration(){
+        return ConfigFactory.load();
+    }
+    
+    /**
+    *   adds a local actor to the ActorSystem
+    */
+    public static void createLocalMember(){
+        Config config = createMemberConfig(getConfiguration());      
+        String uuid = UUID.randomUUID().toString();
+        String actorName = "node_"+uuid;
+        
+        Props mNode = GroupMember.props(
+            -1,
+            remotePath
+        );
+        asystem.actorOf(mNode, actorName);        
+    }
+
+    /**
+    *   overrides 
+    *   - akka.remote.netty.tcp.hostname with current host address
+    *   - akka.remote.netty.tcp.port with 0 (akka will provide a free port in the system)
+    */
+    public static Config createMemberConfig (Config config){
+        if (config.hasPath("manager.remote_ip")==false){
+            Logging.stderr("no romete address found in config file");            
+            return null;
+        }
+
+        String remote_ip = config.getString("manager.remote_ip");
+        int remote_port = config.getInt("manager.remote_port");
+
+        remotePath = "akka.tcp://"+remoteActorSystemName+"@" + remote_ip + ":" + remote_port+ "/user/"+remoteActorName;
+
+        String mIP = "127.0.0.1";
+        try {
+            mIP = InetAddress.getLocalHost().getHostAddress();
+        } catch (UnknownHostException e) {
+            Logging.stderr(e.getMessage());
+            Logging.stderr("using localhost");
+        }
+        Config mHostname = ConfigFactory.parseString("akka.remote.netty.tcp.hostname="+mIP);
+        Config mPort = ConfigFactory.parseString("akka.remote.netty.tcp.port=0");
+
+        Config combinedHostname = mHostname.withFallback(config);
+        Config combinedPort = mPort.withFallback(combinedHostname);
+
+        return ConfigFactory.load(combinedPort);
+    }
+
 }
 
 class CommandReader extends Thread{
+
+    private interface Command {
+        void call();
+    }
     private Map<String, Command> commands;
 
+    /**
+    *   initializes a hashmap with (string command -> interface call)
+    */
     public CommandReader(ActorSystem asystem, ActorRef receiver, Boolean manager){
         commands = new HashMap<String, Command>();
 
@@ -128,6 +166,27 @@ class CommandReader extends Thread{
                 public void call() { 
                     receiver.tell(new McrashViewI(), null);
                 }   
+            });
+
+            commands.put(Commands.joinOnJoin, new Command(){
+                public void call() { 
+                    receiver.tell(new JoinOnJoin(), null);
+                }
+            });
+            commands.put(Commands.joinOnMulticast, new Command(){
+                public void call() { 
+                    receiver.tell(new JoinOnMulticast(), null);
+                }
+            });
+            commands.put(Commands.joinOnMessage, new Command(){
+                public void call() { 
+                    receiver.tell(new JoinOnMessage(), null);
+                }
+            });
+            commands.put(Commands.joinOnViewI, new Command(){
+                public void call() { 
+                    receiver.tell(new JoinOnViewI(), null);
+                }
             });
         }
         else{
@@ -192,11 +251,30 @@ class CommandReader extends Thread{
                 receiver.tell(new CrashViewI(), null);
             }
         });
+
+        commands.put(Commands.isolate, new Command(){
+            public void call() { 
+                receiver.tell(new Isolate(), null);                
+            }
+        });
+        commands.put(Commands.attach, new Command(){
+            public void call() { 
+                receiver.tell(new Attach(), null);                
+            }
+        });
         
         commands.put(Commands.help, new Command(){
             public void call() { 
                 for ( String key : commands.keySet() ) {
                     Logging.out("- "+key);
+                }
+            }
+        });
+        commands.put(Commands.clear, new Command(){
+            public void call() { 
+                int lines = 42;
+                for (int l=0; l<lines; l++ ) {
+                    Logging.out("");
                 }
             }
         });
@@ -213,12 +291,10 @@ class CommandReader extends Thread{
             try{
                 this.commands.get(command).call();
             }catch(NullPointerException e){
-                Logging.out("command not found");
+                Logging.out("command "+command+" not found");
             }
         }  
         this.commands.get("shutdown").call();
     }  
-    public interface Command {
-        void call();
-    }
+
 }

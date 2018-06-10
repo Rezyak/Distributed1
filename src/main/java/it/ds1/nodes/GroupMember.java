@@ -37,8 +37,11 @@ public class GroupMember extends Node{
 	}
 
     public void preStart() {
-		if (this.remotePath != null) {          
-			getContext().actorSelection(remotePath).tell(new Join(), getSelf());
+		if (this.remotePath != null) {      
+            if(atomicMap.get(Commands.isolate).get()==false){
+    			getContext().actorSelection(remotePath).tell(new Join(), getSelf());
+            }
+                
             if(atomicMap.get(Commands.crashPrestart).compareAndSet(true, false)){
                 onCrash(new Crash());
                 return;
@@ -49,16 +52,21 @@ public class GroupMember extends Node{
     
     private void onJoinID(JoinID message) {
         if(atomicMap.get(Commands.crash).get()) return;
+        if(atomicMap.get(Commands.isolate).get()) return;
+        
         if(atomicMap.get(Commands.crashJoinID).compareAndSet(true, false)){
             onCrash(new Crash());
             return;
         }       
+        
         this.id = message.id; 
         checkMessageTimeout();
 	}
 
     private void onGroupView(GroupView message) {                               
         if(atomicMap.get(Commands.crash).get()) return;
+        if(atomicMap.get(Commands.isolate).get()) return;
+        
         if(atomicMap.get(Commands.crashGChange).compareAndSet(true, false)){
             onCrash(new Crash());
             return;
@@ -79,12 +87,14 @@ public class GroupMember extends Node{
 
     @Override
     protected void onMessage(ChatMsg msg){
-        if(atomicMap.get(Commands.crash).get()) return;
+        super.onMessage(msg);
         
+        if(atomicMap.get(Commands.crash).get()) return;   
+        if(atomicMap.get(Commands.isolate).get()) return;
+             
         if (msg.senderID.compareTo(0)==0){
             checkMessageTimeout();
         }
-        super.onMessage(msg);
     }
 
     private void onCrashPrestart(CrashPrestart msg){
@@ -108,8 +118,13 @@ public class GroupMember extends Node{
     @Override
     protected void onFlushTimeout(FlushTimeout msg){
         super.onFlushTimeout(msg);
-        // Logging.log(this.state.getGroupViewSeqnum(),
-        //     "Flush timeout for "+msg.id);
+
+        if(atomicMap.get(Commands.crash).get()) return;        
+        if (this.remotePath != null) {      
+            if(atomicMap.get(Commands.isolate).get()==false){
+    			getContext().actorSelection(remotePath).tell(new FlushTimeout(msg.id), getSelf());
+            }      
+		}
     }
 
     protected void onMessageTimeout(MessageTimeout msg){
@@ -129,11 +144,11 @@ public class GroupMember extends Node{
     }
     @Override
     protected void cancelTimers(){
+        super.cancelTimers();
         if (this.messageTimeout!=null){
             this.messageTimeout.cancel();
             this.messageTimeout = null;
         }
-        super.cancelTimers();
     }
 
     @Override

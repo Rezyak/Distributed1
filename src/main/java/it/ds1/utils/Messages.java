@@ -16,6 +16,10 @@ public class Messages {
     public static class McrashJoin implements Serializable {}
     public static class McrashMessage implements Serializable {}
     public static class McrashViewI implements Serializable {}
+    public static class JoinOnMulticast implements Serializable {}
+    public static class JoinOnMessage implements Serializable {}
+    public static class JoinOnViewI implements Serializable {}
+    public static class JoinOnJoin implements Serializable {}
 
     public static class CrashPrestart implements Serializable {}
     public static class CrashJoinID implements Serializable {}
@@ -24,6 +28,9 @@ public class Messages {
     public static class CrashMulticast implements Serializable {}
     public static class CrashA2A implements Serializable {}
     public static class CrashViewI implements Serializable {}
+    
+    public static class Isolate implements Serializable {}
+    public static class Attach implements Serializable {}
     
 
     public static class Join implements Serializable {}

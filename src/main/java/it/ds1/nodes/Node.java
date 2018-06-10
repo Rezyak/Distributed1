@@ -30,32 +30,33 @@ public class Node extends AbstractActor {
 	protected String remotePath;    //remote path to the groupManager
     protected State state;          //state object of the node
 
-    protected Integer msgSeqnum;
+    protected Integer msgSeqnum;    //node messages seq number
     
-    protected Cancellable sendTimer;
-    private Map<Integer,Cancellable> flushTimeout;
+    protected Cancellable sendTimer;    //schedule message, used to send a multicast message
+    private Map<Integer,Cancellable> flushTimeout;  //schedule message for each member, used during all-to-all
 
-    protected Deque<GroupView> groupViewQueue;
-    protected Map<String, AtomicBoolean> atomicMap;
+    protected Deque<GroupView> groupViewQueue;  //double ended queue used form multiples View Changes 
+    protected Map<String, AtomicBoolean> atomicMap; //hashmap for test commands handling
 
 	protected Node(int id, String remotePath) {
 		this.id = id;
 		this.remotePath = remotePath;
         this.init(id); 
 
+        // init an atomic boolean hashmap for test commands handling
         atomicMap = new HashMap<>();
         atomicMap.put(Commands.crash, new AtomicBoolean());             
         atomicMap.put(Commands.crashMessage, new AtomicBoolean());             
         atomicMap.put(Commands.crashMulticast, new AtomicBoolean());             
         atomicMap.put(Commands.crashA2A, new AtomicBoolean());             
-        atomicMap.put(Commands.crashViewI, new AtomicBoolean());             
+        atomicMap.put(Commands.crashViewI, new AtomicBoolean());
+        atomicMap.put(Commands.isolate, new AtomicBoolean());            
 	}
     
     protected void init(int id){
         this.state = new State(id);
 
         this.msgSeqnum = 0;  
-
         this.sendTimer = null;
         this.flushTimeout = new HashMap<>();    
         this.groupViewQueue = new LinkedList<>();  
@@ -65,6 +66,9 @@ public class Node extends AbstractActor {
 		return Props.create(Node.class, () -> new Node(id, remotePath));
 	}
 
+    /**
+    *   schedule a message m to be fired in time milliseconds
+    */
     protected Cancellable sendSelfAsyncMessage(int time, Serializable m) {
         return getContext().system().scheduler().scheduleOnce(
             Duration.create(time, TimeUnit.MILLISECONDS),  
@@ -76,28 +80,34 @@ public class Node extends AbstractActor {
 
     /**
     *   each node can perform a multicast call given a message m
+    *   -   if should crash during multicast set onCrash
+    *   -   implement shouldCrash interface called from Network
+    *   -   if should be isolated do not multicast
     */
     protected void multicast(Serializable m) {
         if (atomicMap.get(Commands.crashMulticast).compareAndSet(true, false)){
             onCrash(new Crash());
         }
+        if(atomicMap.get(Commands.isolate).get()) return;
+        
         Network.delayMulticast(m, this.state, getSelf(), new Network.Action(){
             public Boolean shouldCrash(){
                 return atomicMap.get(Commands.crash).get();
             }
         });
-        // Network.multicast(m, this.state, getSelf());
     }
 
     /**
-    *   send all unstable messages to all processes in the new view
+    *   send all unstable messages to all processes in the new view and do an all-to-all
+    *   -   if should crash during all-to-all set onCrash
+    *   -   implement shouldCrash interface called from Network 
+    *   -   if should be isolated do not multicast       
     */
     protected void allToAll(Integer seqnum, Integer id){
-        // Logging.log(this.state.getGroupViewSeqnum(),
-        //     "all-to-all");
         if (atomicMap.get(Commands.crashA2A).compareAndSet(true, false)){
             onCrash(new Crash());
         }
+        if(atomicMap.get(Commands.isolate).get()) return;
         
         Network.delayAllToAll(seqnum, id, state, getSelf(), new Network.Action(){
             public Boolean shouldCrash(){
@@ -108,6 +118,10 @@ public class Node extends AbstractActor {
     
     /**
     *   handles new incoming messages:
+    *   -   if is crashed ignore message        
+    *   -   if should be isolated ignore message
+    *   -   if should crash on message receive set onCrash and ignore message   
+    *    
     *   -   if a message has a group seqnum grater than the actual, that means that other nodes
     *       have already installed the next view and have sent a multicast 
     *   =>  buffer incoming messages and deliver them once the new view is installed    
@@ -116,18 +130,20 @@ public class Node extends AbstractActor {
     */
     protected void onMessage(ChatMsg msg){
         if(atomicMap.get(Commands.crash).get()) return;
+        if(atomicMap.get(Commands.isolate).get()) return;
         if(atomicMap.get(Commands.crashMessage).compareAndSet(true, false)){
             onCrash(new Crash());
             return;
         }
+        
+        Boolean selfMessage = msg.senderID.compareTo(this.id)==0; 
+        if(selfMessage) return;
+
         Boolean noGroupView = this.state.getGroupViewSeqnum()==null;
         if (noGroupView){
             this.state.addBuffer(msg);
             return;            
         };
-        
-        Boolean selfMessage = msg.senderID.compareTo(this.id)==0; 
-        if(selfMessage) return;
         
         Boolean notYet = msg.groupViewSeqnum>this.state.getGroupViewSeqnum();
         if (notYet){
@@ -142,12 +158,15 @@ public class Node extends AbstractActor {
     
     /**
     *   insert the flush message in a set, the set reaches the dimension of the group then
-    *   -   install the new view
-    *   -   print the buffered messages of this view
-    *   -   start multicast
+    *   -   if is crashed ignore message        
+    *   -   if should be isolated ignore message
+    *
+    *   -   cancel flush timer 
+    *   -   if flush SET size is equal to group members number install
     */
     protected void onFlush(Flush msg){
         if(atomicMap.get(Commands.crash).get()) return;
+        if(atomicMap.get(Commands.isolate).get()) return;        
 
         Boolean selfMessage = msg.senderID.compareTo(this.id)==0; 
         if (selfMessage) return;
@@ -159,13 +178,9 @@ public class Node extends AbstractActor {
         Cancellable timer = this.flushTimeout.get(msg.senderID);
         if (timer!=null) timer.cancel();
 
-        // Logging.log(this.state.getGroupViewSeqnum(),
-        //     this.id+" flush "+msg.groupViewSeqnum+" from "+msg.senderID+" within "+this.state.getGroupViewSeqnum());
         this.state.insertFlush(msg);
         Integer flushSize = this.state.getFlushSize();
         Integer groupSize = this.state.getGroupViewSize()-1;
-        // Logging.log(this.state.getGroupViewSeqnum(),
-        //     flushSize+" groupsize:"+groupSize+" "+this.state.commaSeparatedList());
         if (flushSize==groupSize){ 
             installView();     
         }
@@ -173,20 +188,24 @@ public class Node extends AbstractActor {
 
     protected void installView(){
         for(GroupView v: groupViewQueue){
+            Boolean hasGroupView = this.state.getGroupViewSeqnum()!=null;
+            if (hasGroupView){
+                // print messages received during flash before view install
+                List<ChatMsg> buffer = this.state.getBufferMessages();
+                for(ChatMsg msg :buffer){
+                    Boolean notYet = msg.groupViewSeqnum>this.state.getGroupViewSeqnum();
+                    Boolean beforeView = msg.groupViewSeqnum<this.state.getGroupViewSeqnum();
+                    if(notYet || beforeView) continue;
+                    
+                    if (this.state.insertNewMessage(msg, msg.senderID)){
+                        printDeliverMessage(msg);
+                    }        
+                }
+            }
+
             this.state.setGroupViewSeqnum(v);
             this.state.putAllMembers(v);
-
             printInstallView();
-            List<ChatMsg> buffer = this.state.getBufferMessages();
-            for(ChatMsg msg :buffer){
-                Boolean notYet = msg.groupViewSeqnum>this.state.getGroupViewSeqnum();
-                Boolean beforeView = msg.groupViewSeqnum<this.state.getGroupViewSeqnum();
-                if(notYet || beforeView) continue;
-                
-                if (this.state.insertNewMessage(msg, msg.senderID)){
-                    printDeliverMessage(msg);
-                }        
-            }
         }
         onViewInstalled();
     }
@@ -208,6 +227,8 @@ public class Node extends AbstractActor {
     *   sends multicast messages if it is not updating the group view
     */
     protected void onSendMessage(SendMessage msg){
+        if(atomicMap.get(Commands.crash).get()) return;
+        
         printMulticastMessage();
         ChatMsg newMsg = new ChatMsg(
             this.msgSeqnum,
@@ -215,7 +236,6 @@ public class Node extends AbstractActor {
             this.state.getGroupViewSeqnum()
         );
         multicast(newMsg);
-        if(atomicMap.get(Commands.crash).get()) return;
 
         this.msgSeqnum += 1;
         
@@ -252,6 +272,15 @@ public class Node extends AbstractActor {
         Logging.out("crash during next intall view...");
     }
 
+    protected void onIsolate(Isolate msg){
+        atomicMap.get(Commands.isolate).set(true);        
+        Logging.out("confining node...");
+    }
+    protected void onAttach(Attach msg){
+        atomicMap.get(Commands.isolate).set(false);        
+        Logging.out("attaching node...");
+    }
+
     protected void setFlushTimeout(){
         List<Integer> memberList = this.state.getMemberList();
         for (Integer member: memberList){
@@ -268,7 +297,9 @@ public class Node extends AbstractActor {
     }
 
     protected void onFlushTimeout(FlushTimeout msg){
-        if(atomicMap.get(Commands.crash).get()) return;        
+        if(atomicMap.get(Commands.crash).get()) return;   
+        Logging.out(this.id+" Flush timeout for "+msg.id);
+             
     }
 
     protected void cancelTimers(){
@@ -301,6 +332,8 @@ public class Node extends AbstractActor {
             .match(CrashMulticast.class, this::onCrashMulticast)
             .match(CrashA2A.class, this::onCrashA2A)
             .match(CrashViewI.class, this::onCrashViewI)
+            .match(Isolate.class, this::onIsolate)
+            .match(Attach.class, this::onAttach)
             .match(Init.class, this::onInit);
     }
     @Override

@@ -14,6 +14,11 @@ import javafx.util.Pair;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import java.io.Serializable;
+import java.io.IOException;
+
+import java.lang.ProcessBuilder;
+import java.lang.Process;
+import java.lang.Runtime;
 
 import akka.actor.Props;
 import akka.actor.ActorRef;
@@ -30,6 +35,10 @@ public class GroupManager extends Node{
         atomicMap.put(Commands.McrashJoin, new AtomicBoolean());
         atomicMap.put(Commands.McrashMessage, new AtomicBoolean());
         atomicMap.put(Commands.McrashViewI, new AtomicBoolean());
+        atomicMap.put(Commands.joinOnJoin, new AtomicBoolean());        
+        atomicMap.put(Commands.joinOnMulticast, new AtomicBoolean());
+        atomicMap.put(Commands.joinOnMessage, new AtomicBoolean());
+        atomicMap.put(Commands.joinOnViewI, new AtomicBoolean());
     }
 
     @Override 
@@ -64,9 +73,11 @@ public class GroupManager extends Node{
 
 	private void onJoin(Join message) {
         if(atomicMap.get(Commands.crash).get()) return;
+        if(atomicMap.get(Commands.isolate).get()) return;
+        
+        if(atomicMap.get(Commands.joinOnJoin).compareAndSet(true, false)) createLocalNode();        
 
-        // Logging.log(this.state.getGroupViewSeqnum(),
-        //     "join request from "+nodesID);
+        Logging.out(this.id+" join request from "+nodesID);
         cancelTimers();
         this.state.clearFlush();
 
@@ -102,10 +113,21 @@ public class GroupManager extends Node{
     }
 
     @Override
-    protected void onMessage(ChatMsg msg){
-        if(atomicMap.get(Commands.crash).get()) return;
-        if(atomicMap.get(Commands.McrashMessage).compareAndSet(true, false)) sendRandom(new Crash());
+    protected void multicast(Serializable m){
+        if(atomicMap.get(Commands.crash).get()) return;   
+        if(atomicMap.get(Commands.isolate).get()) return;      
+        if(atomicMap.get(Commands.joinOnMulticast).compareAndSet(true, false)) createLocalNode();        
+        super.multicast(m);        
+    }
 
+    @Override
+    protected void onMessage(ChatMsg msg){
+        super.onMessage(msg);
+
+        if(atomicMap.get(Commands.crash).get()) return;   
+        if(atomicMap.get(Commands.isolate).get()) return;
+        if(atomicMap.get(Commands.McrashMessage).compareAndSet(true, false)) sendRandom(new Crash());
+        if(atomicMap.get(Commands.joinOnMessage).compareAndSet(true, false)) createLocalNode();        
         
         Boolean selfMessage = msg.senderID.compareTo(this.id)==0; 
         Boolean inGroup = this.state.isMember(msg.senderID);
@@ -113,7 +135,6 @@ public class GroupManager extends Node{
             setMessageTimeout(msg.senderID);
         }
         
-        super.onMessage(msg);
     }
 
     private void onCrashDetected(int id){     
@@ -121,6 +142,8 @@ public class GroupManager extends Node{
         //     "crash detected "+id);   
         cancelTimers();                                   
         this.state.clearFlush();
+
+        if(atomicMap.get(Commands.crash).get()) return;
         this.state.removeMember(id);
         
         Integer groupSize = this.state.getGroupViewSize()-1;
@@ -144,26 +167,40 @@ public class GroupManager extends Node{
         else{
             updateGroupView();
         } 
+        
     }
 
     
     @Override
     protected void onFlushTimeout(FlushTimeout msg){    
+        if(atomicMap.get(Commands.crash).get()) return;
+
         super.onFlushTimeout(msg);   
-        Logging.out(this.id+" Flush timeout for "+msg.id);
-        onCrashDetected(msg.id);
-        
+        onCrashDetected(msg.id);        
     }
 
     protected void onMessageTimeout(MessageTimeout msg){
+        if(atomicMap.get(Commands.crash).get()) return;
+        
         Logging.out(this.id+" Message timeout for "+msg.id);
         onCrashDetected(msg.id);
     }
 
     @Override
     protected void onViewInstalled(){
-        if(atomicMap.get(Commands.McrashViewI).compareAndSet(true, false)) sendRandom(new Crash());        
         super.onViewInstalled();
+        if(atomicMap.get(Commands.crash).get()) return;
+        
+        if(atomicMap.get(Commands.McrashViewI).compareAndSet(true, false)) sendRandom(new Crash());        
+        if(atomicMap.get(Commands.joinOnViewI).compareAndSet(true, false)) createLocalNode();        
+        
+        List<Integer> memberList = this.state.getMemberList();
+        for (Integer member: memberList){
+            if (member.compareTo(0)!=0){
+                setMessageTimeout(member);
+            }
+        }
+        
     }
 
    @Override    
@@ -194,6 +231,29 @@ public class GroupManager extends Node{
         Logging.out("prepare to kill a process on next install view...");
     }
 
+    private void onJoinOnJoin(JoinOnJoin msg){
+        atomicMap.get(Commands.joinOnJoin).set(true);
+        Logging.out("creating a local node join during next join...");
+    }
+    private void onJoinOnMulticast(JoinOnMulticast msg){
+        atomicMap.get(Commands.joinOnMulticast).set(true);
+        Logging.out("creating a local node join during next multicast...");
+    }
+ 
+    private void onJoinOnMessage(JoinOnMessage msg){
+        atomicMap.get(Commands.joinOnMessage).set(true);
+        Logging.out("creating a local node join during next message receive...");
+    }
+  
+    private void onJoinOnViewI(JoinOnViewI msg){
+        atomicMap.get(Commands.joinOnViewI).set(true);
+        Logging.out("creating a local node join during next install view...");
+    }
+
+    private void createLocalNode(){
+        Logging.out("creating node...");
+        App.createLocalMember();
+    }
     private void sendRandom(Serializable m){
         List<Integer> memberList = this.state.getMemberList();
         Integer members = memberList.size();
@@ -212,6 +272,7 @@ public class GroupManager extends Node{
     
     @Override
     protected void cancelTimers(){
+        super.cancelTimers();        
         List<Integer> memberList = this.state.getMemberList();
         for (Integer member: memberList){
             Cancellable timer = this.messageTimeout.get(member);
@@ -220,7 +281,6 @@ public class GroupManager extends Node{
                 this.messageTimeout.put(member, null);        
             }
         }
-        super.cancelTimers();        
     }
 
     private void setMessageTimeout(Integer id){
@@ -237,7 +297,11 @@ public class GroupManager extends Node{
             
             .match(McrashJoin.class, this::onMcrashJoin)            
             .match(McrashMessage.class, this::onMcrashMessage)            
-            .match(McrashViewI.class, this::onMcrashViewI)                        
+            .match(McrashViewI.class, this::onMcrashViewI)
+            .match(JoinOnJoin.class, this::onJoinOnJoin)                        
+            .match(JoinOnMulticast.class, this::onJoinOnMulticast)            
+            .match(JoinOnMessage.class, this::onJoinOnMessage)            
+            .match(JoinOnViewI.class, this::onJoinOnViewI)                        
             .build();
 	}
 }

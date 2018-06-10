@@ -17,6 +17,9 @@ try{
         viewList.push({file, view_name, view_num, lines})
     })
     
+    viewList.sort(function(a, b) {
+        return a.view_num - b.view_num;
+    });
     console.log('Views installed:', viewList.map(f => f.view_name), '\n')
     
     for (let view of viewList){

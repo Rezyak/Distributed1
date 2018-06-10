@@ -4,6 +4,10 @@ class Commands{
     public final static String McrashJoin = "McrashJoin";
     public final static String McrashMessage = "McrashMessage";
     public final static String McrashViewI = "McrashViewI";
+    public final static String joinOnJoin = "joinOnJoin";    
+    public final static String joinOnMulticast = "joinOnMulticast";
+    public final static String joinOnMessage = "joinOnMessage";
+    public final static String joinOnViewI = "joinOnViewI";
 
     public final static String crashPrestart = "crashPrestart";
     public final static String crashJoinID = "crashJoinID";
@@ -18,6 +22,10 @@ class Commands{
     public final static String crashA2A = "crashA2A";
     public final static String crashViewI = "crashViewI";
 
+    public final static String isolate = "isolate";
+    public final static String attach = "attach";
+
     public final static String help = "help";
+    public final static String clear = "clear";
     
 }
