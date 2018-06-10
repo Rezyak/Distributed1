@@ -285,24 +285,34 @@ class CommandReader extends Thread{
             public void call() { 
                 Logging.out("****Starting TEST****");
                 Random rnd = new Random();
+                int[] nodeid = {1};
                 
                 for (Integer i=0; i<2; i++){
-                    for(Integer j=0; j<=5; j++){
+                    for(Integer j=0; j<5; j++){
                         Boolean createNode = Math.random() <0.85;
                         Boolean crashNode = Math.random() <0.6;
                                                 
                         if (createNode){
-                            Logging.out("creating node...");
-                            App.createLocalMember();                                                    
+                            Logging.out("creating node "+nodeid[0]+"...");
+                            nodeid[0]+=1;
+                            Runnable r = new Runnable() {
+                                public void run() {
+                                    App.createLocalMember();
+                                    Network.delay(rnd.nextInt(1000));                        
+                                    
+                                    if (crashNode){
+                                        Logging.out("killing a node...");                            
+                                        receiver.tell(new CrashRandom(), null);
+                                    }  
+                                    Boolean last = i==1 && j==4;
+                                    if (last) Logging.out("====> TEST DONE run <node evaluation.js>");
+                                }
+                            };
+
+                            new Thread(r).start();
                         } 
-                        if (crashNode){
-                            Logging.out("killing a node...");                            
-                            receiver.tell(new CrashRandom(), null);
-                        }
-                        Network.delay(rnd.nextInt(100));                        
                     }                
                 }
-                Logging.out("====> TEST DONE run <node evaluation.js>");                
             }
         });
     }

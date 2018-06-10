@@ -187,13 +187,13 @@ public class Node extends AbstractActor {
     }
 
     protected void installView(){
+        Boolean hasGroupView = this.state.getGroupViewSeqnum()!=null;
+        if (hasGroupView) printBufferMessages();
+        
         for(GroupView v: groupViewQueue){
-            Boolean hasGroupView = this.state.getGroupViewSeqnum()!=null;
-            if (hasGroupView) printBufferMessages();
-
             this.state.setGroupViewSeqnum(v);
             this.state.putAllMembers(v);
-            
+
             printInstallView();
             printBufferMessages();
         }
@@ -340,7 +340,7 @@ public class Node extends AbstractActor {
     }
     protected void printDeliverMessage(ChatMsg msg){
         Logging.log(this.state.getGroupViewSeqnum(),
-            this.id+" deliver multicast "+msg.msgSeqnum+" from "+msg.senderID+" within "+this.state.getGroupViewSeqnum());
+            this.id+" deliver multicast "+msg.msgSeqnum+" from "+msg.senderID+" within "+this.state.getGroupViewSeqnum()+" ("+msg.groupViewSeqnum+")");
     }
     protected void printBufferMessages(){
         // print messages received during flash before view install
