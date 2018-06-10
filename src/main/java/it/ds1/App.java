@@ -286,8 +286,8 @@ class CommandReader extends Thread{
                 Logging.out("****Starting TEST****");
                 Random rnd = new Random();
                 
-                for (Integer i=0; i<10; i++){
-                    for(Integer j=0; j<=10; j++){
+                for (Integer i=0; i<2; i++){
+                    for(Integer j=0; j<=5; j++){
                         Boolean createNode = Math.random() <0.85;
                         Boolean crashNode = Math.random() <0.6;
                                                 

@@ -193,9 +193,9 @@ public class Node extends AbstractActor {
 
             this.state.setGroupViewSeqnum(v);
             this.state.putAllMembers(v);
-            printBufferMessages();
             
             printInstallView();
+            printBufferMessages();
         }
         onViewInstalled();
     }
