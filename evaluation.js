@@ -7,7 +7,10 @@ try{
     // synchronous read of files in logs
     fs.readdirSync(logs).forEach(file => {
         let file_path = logs+file
-        let viewn = file.match(/^[a-z]+\_[0-9]+/)[0] 
+        let viewn = file.match(/^[a-z]+\_[0-9]+/)
+        if (viewn === null) continue
+        
+        viewn = viewn[0] 
         let view_name = viewn.replace('_', ' ')
         let view_num = view_name.match(/[0-9]+/)[0]   
          
@@ -90,7 +93,15 @@ try{
 function checkInstallView(view, lines_by_id,  members){
     let actions = []
     for (let member of members){
-        let member_first_action = lines_by_id[member][0]
+        let index = 0
+        // skip all-to-all actions
+        for (let action of lines_by_id[members]){
+            let all2all = action.match(/all-to-all/)
+            if (all2all===null) break
+            index++
+        }
+        
+        let member_first_action = lines_by_id[member][index]
         let install_str = member_first_action.match(/install view [0-9]+/)
         if (install_str===null) throw `first action should be install view but '${member_first_action}' found`
         
