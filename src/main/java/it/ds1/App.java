@@ -95,15 +95,21 @@ public class App {
     *   adds a local actor to the ActorSystem
     */
     public static void createLocalMember(){
-        Config config = createMemberConfig(getConfiguration());      
-        String uuid = UUID.randomUUID().toString();
-        String actorName = "node_"+uuid;
-        
-        Props mNode = GroupMember.props(
-            -1,
-            remotePath
-        );
-        asystem.actorOf(mNode, actorName);        
+        Runnable r = new Runnable() {
+            public void run() {
+                Config config = createMemberConfig(getConfiguration());      
+                String uuid = UUID.randomUUID().toString();
+                String actorName = "node_"+uuid;
+                
+                Props mNode = GroupMember.props(
+                    -1,
+                    remotePath
+                );
+                asystem.actorOf(mNode, actorName); 
+            }
+        };
+
+        new Thread(r).start();       
     }
 
     /**

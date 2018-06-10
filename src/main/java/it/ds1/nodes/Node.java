@@ -239,11 +239,13 @@ public class Node extends AbstractActor {
 
     protected void onCrash(Crash msg){
         atomicMap.get(Commands.crash).set(true);
-        cancelTimers();        
+        cancelTimers();
+        Logging.log(this.state.getGroupViewSeqnum(), this.id+" CRASH");        
         Logging.out(this.id+" crashed");
     }
     protected void onInit(Init msg){
-        atomicMap.get(Commands.crash).set(false);        
+        atomicMap.get(Commands.crash).set(false);   
+        Logging.log(this.state.getGroupViewSeqnum(), this.id+" INIT");     
         Logging.out("join request to "+remotePath);
     }
     protected void onCrashMessage(CrashMessage msg){
@@ -264,11 +266,13 @@ public class Node extends AbstractActor {
     }
 
     protected void onIsolate(Isolate msg){
-        atomicMap.get(Commands.isolate).set(true);        
+        atomicMap.get(Commands.isolate).set(true); 
+        Logging.log(this.state.getGroupViewSeqnum(), this.id+" ISOLATED");       
         Logging.out("confining node...");
     }
     protected void onAttach(Attach msg){
-        atomicMap.get(Commands.isolate).set(false);        
+        atomicMap.get(Commands.isolate).set(false); 
+        Logging.log(this.state.getGroupViewSeqnum(), this.id+" ATTACHED");       
         Logging.out("attaching node...");
     }
 
