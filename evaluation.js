@@ -102,6 +102,8 @@ function checkInstallView(view, lines_by_id,  members){
         }
         
         let member_first_action = lines_by_id[member][index]
+        if (member_first_action===undefined) continue
+        
         let install_str = member_first_action.match(/install view [0-9]+/)
         if (install_str===null) throw `first action should be install view but '${member_first_action}' found`
         
