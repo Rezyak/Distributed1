@@ -23,7 +23,7 @@ try{
     viewList.sort(function(a, b) {
         return a.view_num - b.view_num;
     });
-    console.log('Views installed:', viewList.map(f => f.view_name), '\n')
+    console.log('Views installed:', viewList.map(f => f.view_name).join(), '\n')
     
     for (let view of viewList){
         console.log('Analyzing', view.view_name)
@@ -55,7 +55,6 @@ try{
         }
         
         let members = Object.keys(lines_by_id)
-        console.log('View operational members:', members)
     
         /**
         *   - VS, each process maintains a "view" of the group
@@ -96,13 +95,17 @@ function checkInstallView(view, lines_by_id,  members){
         let index = 0
         // skip all-to-all actions
         for (let action of lines_by_id[member]){
-            let all2all = action.match(/all-to-all/)
-            if (all2all===null) break
+            let install = action.match(/install view/)
+            if (install!==null) break            
+            let send = action.match(/send/)
+            if (send!==null) break
+            let del = action.match(/deliver/)
+            if (del!==null) break
             index++
         }
-        
+
         let member_first_action = lines_by_id[member][index]
-        if (member_first_action===undefined) continue
+        if (member_first_action===undefined) continue //no install view
         
         let install_str = member_first_action.match(/install view [0-9]+/)
         if (install_str===null) throw `first action should be install view but '${member_first_action}' found`
@@ -142,7 +145,7 @@ function checkDeliveries(view, lines_by_id,  members){
         }
     }    
     for (let member in sent){
-        console.log('\t=>','member', member, 'sent', sent[member])
+        console.log('\t=>','member', member, 'sent', sent[member].join())
         for (let delivery_member in delivered){
             if (delivery_member===member) continue
 
@@ -150,16 +153,16 @@ function checkDeliveries(view, lines_by_id,  members){
             if (deliveries===undefined) continue
 
             if (arrays_equal(sent[member], deliveries)){
-                console.log('\t✓', delivery_member,' delivered', deliveries, 'from', member)                     
+                console.log('\t✓', delivery_member,' delivered', deliveries.join(), 'from', member)                     
             }
             else {
                 if (checkCrash(delivery_member, view)){
                     console.log(`WARNING (crash, ${delivery_member} not present in next view)`)
-                    console.log('\tX', delivery_member,' delivered', deliveries, 'from', member)
+                    console.log('\tX', delivery_member,' delivered', deliveries.join(), 'from', member)
                 }
                 else{
                     console.log(`WARNING POSSIBLE CRASH ${delivery_member}`)
-                    console.log('\tX', delivery_member,' delivered', deliveries, 'from', member)                    
+                    console.log('\tX', delivery_member,' delivered', deliveries.join(), 'from', member)                    
                 } 
             }
         }
@@ -176,10 +179,13 @@ function getSeqnum(message){
 
 function checkCrash(member, view){
     let file_path = logs+'view_'+(Number(view.view_num)+1)+'.log'
-
-    let lines = fs.readFileSync(file_path, 'utf-8')
+    let lines = []
+    
+    try{
+        lines = fs.readFileSync(file_path, 'utf-8')
         .split('\n')
         .filter(Boolean)
+    }catch(e){}
     
     let ids = []
     for (let line of lines){

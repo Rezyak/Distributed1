@@ -35,6 +35,8 @@ public class Messages {
     public static class Attach implements Serializable {}
     
 
+    public static class InstallView implements Serializable {}
+
     public static class Join implements Serializable {}
     public static class JoinID implements Serializable {
         final Integer id;
@@ -80,7 +82,7 @@ public class Messages {
 
 
     public static class Flush implements Serializable {
-        final Integer groupViewSeqnum;
+        final Integer groupViewSeqnum; 
         final Integer senderID;        
 
         @Override

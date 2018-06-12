@@ -35,14 +35,8 @@ public class Node extends AbstractActor {
     protected Cancellable sendTimer;    //schedule message, used to send a multicast message
     private Map<Integer,Cancellable> flushTimeout;  //schedule message for each member, used during all-to-all
 
-    protected Deque<GroupView> groupViewQueue;  //double ended queue used form multiples View Changes 
-    protected Map<String, AtomicBoolean> atomicMap; //hashmap for test commands handling
-
-	protected Node(int id, String remotePath) {
-		this.id = id;
-		this.remotePath = remotePath;
-        this.init(id); 
-
+    protected static Map<String, AtomicBoolean> atomicMap; //hashmap for test commands handling
+    static {
         // init an atomic boolean hashmap for test commands handling
         atomicMap = new HashMap<>();
         atomicMap.put(Commands.crash, new AtomicBoolean());             
@@ -50,7 +44,13 @@ public class Node extends AbstractActor {
         atomicMap.put(Commands.crashMulticast, new AtomicBoolean());             
         atomicMap.put(Commands.crashA2A, new AtomicBoolean());             
         atomicMap.put(Commands.crashViewI, new AtomicBoolean());
-        atomicMap.put(Commands.isolate, new AtomicBoolean());            
+        atomicMap.put(Commands.isolate, new AtomicBoolean());  
+    }
+	protected Node(int id, String remotePath) {
+		this.id = id;
+		this.remotePath = remotePath;
+
+        this.init(id);            
 	}
     
     protected void init(int id){
@@ -59,7 +59,6 @@ public class Node extends AbstractActor {
         this.msgSeqnum = 0;  
         this.sendTimer = null;
         this.flushTimeout = new HashMap<>();    
-        this.groupViewQueue = new LinkedList<>();  
     }
     
     static public Props props(int id, String remotePath) {
@@ -129,29 +128,15 @@ public class Node extends AbstractActor {
     *   -   insert the incoming message in a map, deliver it only if it is not a dupplicate
     */
     protected void onMessage(ChatMsg msg){
+        
         if(atomicMap.get(Commands.crash).get()) return;
         if(atomicMap.get(Commands.isolate).get()) return;
         if(atomicMap.get(Commands.crashMessage).compareAndSet(true, false)){
             onCrash(new Crash());
             return;
         }
-        
-        Boolean selfMessage = msg.senderID.intValue() == this.id; 
-        if(selfMessage) return;
 
-        Boolean noGroupView = this.state.getGroupViewSeqnum()==null;
-        if (noGroupView){
-            this.state.addBuffer(msg);
-            return;            
-        };
-        
-        Boolean notInView = msg.groupViewSeqnum.intValue()!=this.state.getGroupViewSeqnum().intValue();
-        if (notInView){
-            this.state.addBuffer(msg);
-            return;
-        }
-
-        if (this.state.insertNewMessage(msg, msg.senderID)){
+        if (this.state.shouldDeliver(msg)){
             printDeliverMessage(msg);
         }        
     }
@@ -168,50 +153,39 @@ public class Node extends AbstractActor {
         if(atomicMap.get(Commands.crash).get()) return;
         if(atomicMap.get(Commands.isolate).get()) return;        
 
-        Boolean selfMessage = msg.senderID.intValue() == this.id; 
-        if (selfMessage) return;
-        
-        Boolean inGroup = this.state.isMember(msg.senderID);
-        if (inGroup==false) return;
+        this.state.addFlush(msg);
 
         //if received cancel it
         Cancellable timer = this.flushTimeout.get(msg.senderID);
         if (timer!=null) timer.cancel();
 
-        this.state.insertFlush(msg);
-        Integer flushSize = this.state.getFlushSize();
-        Integer groupSize = this.state.getGroupViewSize()-1;
-        if (flushSize.intValue()==groupSize.intValue()){ 
-            installView();     
+        if (this.state.shouldInstallView(msg.groupViewSeqnum)){ 
+            getSelf().tell(new InstallView(), getSelf());        
         }
     }
 
-    protected void installView(){
-        Boolean hasGroupView = this.state.getGroupViewSeqnum()!=null;
-        if (hasGroupView) printBufferMessages();
-
-        for(GroupView v: groupViewQueue){
-            this.state.setGroupViewSeqnum(v);
-            this.state.putAllMembers(v);
-
+    protected void installView(InstallView msg){
+        List<ChatMsg> buffered = this.state.getBufferedMessages();
+        printBufferMessages(buffered);
+        while(this.state.getNextView()){
             printInstallView();
-            printBufferMessages();
+            
+            buffered = this.state.getBufferedMessages();
+            printBufferMessages(buffered);
         }
         onViewInstalled();
     }
 
     
-    protected void onViewInstalled(){
-        cancelTimers();   
-        this.state.clearFlush();        
-        this.state.clearBuffer();
-        this.groupViewQueue = new LinkedList<>();
-
+    protected void onViewInstalled(){        
+        cancelTimers();      
         if(atomicMap.get(Commands.crashViewI).compareAndSet(true, false)){
             onCrash(new Crash());
             return;
         }
-        getSelf().tell(new SendMessage(), getSelf());
+        
+        Boolean alone = this.state.getGroupViewSize().intValue()==1;
+        if (alone==false) this.sendTimer = sendSelfAsyncMessage(Network.Td/2, new SendMessage());
     }
 
     /**
@@ -317,6 +291,8 @@ public class Node extends AbstractActor {
     */
     protected ReceiveBuilder getReceive(){
         return receiveBuilder()
+            .match(InstallView.class, this::installView)  
+                  
             .match(ChatMsg.class, this::onMessage)
             .match(Flush.class, this::onFlush)
             .match(SendMessage.class, this::onSendMessage)
@@ -346,16 +322,9 @@ public class Node extends AbstractActor {
         Logging.log(this.state.getGroupViewSeqnum(),
             this.id+" deliver multicast "+msg.msgSeqnum+" from "+msg.senderID+" within "+this.state.getGroupViewSeqnum()+" ("+msg.groupViewSeqnum+")");
     }
-    protected void printBufferMessages(){
-        // print messages received during flash before view install
-        List<ChatMsg> buffer = this.state.getBufferMessages();
+    protected void printBufferMessages(List<ChatMsg> buffer){
         for(ChatMsg msg :buffer){
-            Boolean isInView = msg.groupViewSeqnum.intValue() == this.state.getGroupViewSeqnum().intValue();
-            if(isInView){
-                if (this.state.insertNewMessage(msg, msg.senderID)){
-                    printDeliverMessage(msg);
-                } 
-            }       
+            printDeliverMessage(msg);
         }
     }
 }

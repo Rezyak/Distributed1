@@ -29,42 +29,34 @@ public class GroupManager extends Node{
     private static Integer nodesID = 1;
 
     private Map<Integer,Cancellable> messageTimeout;
-    private GroupManager(int id, String remotePath) {
-        super(id, remotePath);
 
+    static {
+        // init an atomic boolean hashmap for test commands handling
         atomicMap.put(Commands.McrashJoin, new AtomicBoolean());
         atomicMap.put(Commands.McrashMessage, new AtomicBoolean());
         atomicMap.put(Commands.McrashViewI, new AtomicBoolean());
         atomicMap.put(Commands.joinOnJoin, new AtomicBoolean());        
         atomicMap.put(Commands.joinOnMulticast, new AtomicBoolean());
         atomicMap.put(Commands.joinOnMessage, new AtomicBoolean());
-        atomicMap.put(Commands.joinOnViewI, new AtomicBoolean());
+        atomicMap.put(Commands.joinOnViewI, new AtomicBoolean()); 
+    }
+    private GroupManager(int id, String remotePath) {
+        super(id, remotePath);
     }
 
     @Override 
     protected void init(int id){
         super.init(id);
-        this.messageTimeout = new HashMap<>();
 
+        this.messageTimeout = new HashMap<>();
         this.state.putMember(id, getSelf());
+
         GroupView updateView = new GroupView(
             this.state.getGroupView(), 
             mView
         );
-        this.groupViewQueue.add(updateView);        
-        justInstallView();
-    }
-
-    private void justInstallView(){
-        
-        for(GroupView v: groupViewQueue){
-            this.state.setGroupViewSeqnum(v);
-            this.state.putAllMembers(v);            
-            printInstallView();
-        }
-        cancelTimers();        
-        this.state.clearFlush();            
-        this.groupViewQueue = new LinkedList<>();
+        this.state.groupViewChange(updateView);   
+        getSelf().tell(new InstallView(), getSelf());
     }
 
     static public Props props(int id, String remotePath) {
@@ -79,34 +71,27 @@ public class GroupManager extends Node{
 
         Logging.out(this.id+" join request from "+nodesID);
         cancelTimers();
-        this.state.clearFlush();
 
-        this.state.putMember(nodesID, getSender());
+        this.state.putMember(nodesID, getSender());        
         getSender().tell(new JoinID(nodesID), getSelf());
+        nodesID++;
 
         if(atomicMap.get(Commands.McrashJoin).compareAndSet(true, false)){
             sendRandom(new Crash());
         }
 
-        nodesID++;
         updateGroupView();
 	}
 
     private void updateGroupView(){
-        Integer nextGroupViewSeqnum = this.state.getGroupViewSeqnum()+1;
-        
-        try{
-            GroupView lastGroup = this.groupViewQueue.getLast();
-            nextGroupViewSeqnum = lastGroup.groupViewSeqnum+1;
-        }catch(NoSuchElementException e){}
+        Integer nextGroupViewSeqnum = this.state.getMaxView()+1;
 
         GroupView updateView = new GroupView(
             this.state.getGroupView(), 
             nextGroupViewSeqnum
         );
-        // Logging.log(this.state.getGroupViewSeqnum(),
-        //     "enqueue "+nextGroupViewSeqnum+" "+this.state.commaSeparatedList());
-        this.groupViewQueue.add(updateView);
+        this.state.groupViewChange(updateView);        
+        
         multicast(updateView);
         setFlushTimeout();                    
         allToAll(nextGroupViewSeqnum-1, this.id);        
@@ -134,40 +119,31 @@ public class GroupManager extends Node{
         if (selfMessage==false && inGroup){
             setMessageTimeout(msg.senderID);
         }
-        
     }
 
     private void onCrashDetected(int id){     
         // Logging.log(this.state.getGroupViewSeqnum(),
         //     "crash detected "+id);   
-        cancelTimers();                                   
-        this.state.clearFlush();
+        cancelTimers();
 
         if(atomicMap.get(Commands.crash).get()) return;
         this.state.removeMember(id);
-        
+
         Integer groupSize = this.state.getGroupViewSize()-1;
         if (groupSize.intValue()==0){
             //he is alone
-            Integer nextGroupViewSeqnum = this.state.getGroupViewSeqnum()+1;
-            
-            try{
-                GroupView lastGroup = this.groupViewQueue.getLast();
-                nextGroupViewSeqnum = lastGroup.groupViewSeqnum+1;
-            }catch(NoSuchElementException e){}
+            Integer nextGroupViewSeqnum = this.state.getMaxView()+1;    
 
             GroupView updateView = new GroupView(
                 this.state.getGroupView(), 
                 nextGroupViewSeqnum
             );
-           
-            this.groupViewQueue.add(updateView);
-            justInstallView();            
+            this.state.groupViewChange(updateView);        
+            getSelf().tell(new InstallView(), getSelf());
         }       
         else{
             updateGroupView();
         } 
-        
     }
 
     
@@ -205,13 +181,7 @@ public class GroupManager extends Node{
 
    @Override    
     protected void onInit(Init msg){
-        Integer nextGroupViewSeqnum = this.state.getGroupViewSeqnum()+1;
-            
-        try{
-            GroupView lastGroup = this.groupViewQueue.getLast();
-            nextGroupViewSeqnum = lastGroup.groupViewSeqnum+1;
-        }catch(NoSuchElementException e){}
-
+        Integer nextGroupViewSeqnum = this.state.getMaxView()+1;
         this.mView = nextGroupViewSeqnum;
         init(0);
     }

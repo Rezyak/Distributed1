@@ -67,13 +67,13 @@ public class Network {
         });
     }
     public static void delayAllToAll(Integer seqnum, Integer id, State state, ActorRef self, Action action){
-        Logging.log(state.getGroupViewSeqnum(), id+" all-to-all");
-        state.getMessagesInstance().shuffledForEach(new MessageMap.Action<ChatMsg>(){
+        state.getCurrentMessagesInstance().shuffledForEach(new MessageMap.Action<ChatMsg>(){
             @Override
             public void perform(Integer id, ChatMsg msg){
                 delayMulticast(msg, state, self, null);                         
             }
         });      
+        Logging.log(state.getGroupViewSeqnum(), id+" all-to-all "+seqnum);        
         delayMulticast(new Flush(seqnum, id), state, self, action);
     }
 

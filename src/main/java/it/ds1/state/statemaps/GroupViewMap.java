@@ -16,14 +16,12 @@ public class GroupViewMap extends Iterable<ActorRef>{
     public GroupViewMap(Integer groupViewSeqnum){
         this.groupViewSeqnum = groupViewSeqnum;
     }
-
     public Integer getSeqnum(){
         return this.groupViewSeqnum;
     }
     public void setSeqnum(Integer seqnum){
         this.groupViewSeqnum = seqnum;
     }
-    
     public void putMember(Integer id, ActorRef nodeRef){
         this.map.put(id, nodeRef);  
     }
@@ -33,7 +31,6 @@ public class GroupViewMap extends Iterable<ActorRef>{
     public ActorRef getMember(Integer id){
         return this.map.get(id);
     }
-
     public void putAllMember(Map<Integer, ActorRef> members){
         this.map = new HashMap<>();
 		this.map.putAll(members); 

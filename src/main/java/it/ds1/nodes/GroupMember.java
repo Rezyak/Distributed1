@@ -16,19 +16,19 @@ import akka.actor.Cancellable;
 public class GroupMember extends Node{
 
     private Cancellable messageTimeout;
-
-    private GroupMember(int id, String remotePath) {
-        super(id, remotePath);   
-
+    static {
         atomicMap.put(Commands.crashPrestart, new AtomicBoolean());
         atomicMap.put(Commands.crashJoinID, new AtomicBoolean());
         atomicMap.put(Commands.crashGChange, new AtomicBoolean());
+    }
+    
+    private GroupMember(int id, String remotePath) {
+        super(id, remotePath);   
     }
 
     @Override 
     protected void init(int id){
         super.init(id);
-
         this.messageTimeout = null; 
     }
 
@@ -70,17 +70,11 @@ public class GroupMember extends Node{
         if(atomicMap.get(Commands.crashGChange).compareAndSet(true, false)){
             onCrash(new Crash());
             return;
-        }
-        this.state.clearFlush();        
-        checkMessageTimeout();
-        // Logging.log(this.state.getGroupViewSeqnum(),
-        //     "request update group view "+message.groupViewSeqnum);
-        cancelTimers();         
-        this.groupViewQueue.add(message);
-
-        this.state.putAllMembers(message);
-        setFlushTimeout();             
+        }       
         
+        this.state.groupViewChange(message);
+        cancelTimers();         
+        setFlushTimeout();
         allToAll(message.groupViewSeqnum-1, this.id);       
 	}
     
@@ -92,7 +86,7 @@ public class GroupMember extends Node{
         if(atomicMap.get(Commands.crash).get()) return;   
         if(atomicMap.get(Commands.isolate).get()) return;
              
-        if (msg.senderID.compareTo(0)==0){
+        if (msg.senderID.intValue()==0){
             checkMessageTimeout();
         }
     }
@@ -122,13 +116,15 @@ public class GroupMember extends Node{
         if(atomicMap.get(Commands.crash).get()) return;        
         if (this.remotePath != null) {      
             if(atomicMap.get(Commands.isolate).get()==false){
-    			getContext().actorSelection(remotePath).tell(new FlushTimeout(msg.id), getSelf());
+                //TODO check 
+    			// getContext().actorSelection(remotePath).tell(new FlushTimeout(msg.id), getSelf());
             }      
 		}
     }
 
     protected void onMessageTimeout(MessageTimeout msg){
         Logging.out(this.id+" onTimeout");
+        
         //stop timers and clear state
         cancelTimers();
         init(-1);
@@ -138,6 +134,8 @@ public class GroupMember extends Node{
     }
     @Override    
     protected void onInit(Init msg){
+        cancelTimers();
+        
         super.onInit(msg);
         init(-1);        
         preStart();

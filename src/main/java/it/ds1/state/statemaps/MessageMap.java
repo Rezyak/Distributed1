@@ -16,11 +16,12 @@ public class MessageMap extends Iterable<ChatMsg>{
         this.buffer = new ArrayList<>();
     }
 
-    //TODO change putAll and put
+    // unstable messages
     public void putMessage(Integer id, ChatMsg msg){
         this.map.put(id, msg);
     }
 
+    //Flush set methods
     public Integer getFlushSize(){
         return this.flushMap.size();
     }
@@ -31,6 +32,7 @@ public class MessageMap extends Iterable<ChatMsg>{
         this.flushMap = new HashSet<>();
     }
 
+    //buffer list methods
     public void addBuffer(ChatMsg msg){
         this.buffer.add(msg);
     }
