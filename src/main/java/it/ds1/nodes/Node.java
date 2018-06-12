@@ -292,7 +292,7 @@ public class Node extends AbstractActor {
     protected ReceiveBuilder getReceive(){
         return receiveBuilder()
             .match(InstallView.class, this::installView)  
-                  
+
             .match(ChatMsg.class, this::onMessage)
             .match(Flush.class, this::onFlush)
             .match(SendMessage.class, this::onSendMessage)
@@ -324,7 +324,9 @@ public class Node extends AbstractActor {
     }
     protected void printBufferMessages(List<ChatMsg> buffer){
         for(ChatMsg msg :buffer){
-            printDeliverMessage(msg);
+            if (this.state.shouldDeliver(msg)){
+                printDeliverMessage(msg);
+            }  
         }
     }
 }
