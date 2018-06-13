@@ -16,11 +16,6 @@ import akka.actor.Cancellable;
 public class GroupMember extends Node{
 
     private Cancellable messageTimeout;
-    static {
-        atomicMap.put(Commands.crashPrestart, new AtomicBoolean());
-        atomicMap.put(Commands.crashJoinID, new AtomicBoolean());
-        atomicMap.put(Commands.crashGChange, new AtomicBoolean());
-    }
     
     private GroupMember(int id, String remotePath) {
         super(id, remotePath);   
@@ -28,6 +23,10 @@ public class GroupMember extends Node{
 
     @Override 
     protected void init(int id){
+        atomicMap.put(Commands.crashPrestart, new AtomicBoolean());
+        atomicMap.put(Commands.crashJoinID, new AtomicBoolean());
+        atomicMap.put(Commands.crashGChange, new AtomicBoolean());
+        
         super.init(id);
         this.messageTimeout = null; 
     }
@@ -51,8 +50,15 @@ public class GroupMember extends Node{
 	}
     
     private void onJoinID(JoinID message) {
-        if(atomicMap.get(Commands.crash).get()) return;
-        if(atomicMap.get(Commands.isolate).get()) return;
+        Logging.out(this.id+" received id "+message.id);                
+        if(atomicMap.get(Commands.crash).get()){
+            Logging.out(this.id+" is crashed ");
+            return;
+        }
+        if(atomicMap.get(Commands.isolate).get()){
+            Logging.out(this.id+" is isolated ");
+            return;
+        }   
         
         if(atomicMap.get(Commands.crashJoinID).compareAndSet(true, false)){
             onCrash(new Crash());
@@ -63,9 +69,16 @@ public class GroupMember extends Node{
         checkMessageTimeout();
 	}
 
-    private void onGroupView(GroupView message) {                               
-        if(atomicMap.get(Commands.crash).get()) return;
-        if(atomicMap.get(Commands.isolate).get()) return;
+    private void onGroupView(GroupView message) {  
+        Logging.out(this.id+" received group change ");                                                     
+        if(atomicMap.get(Commands.crash).get()){
+            Logging.out(this.id+" is crashed ");
+            return;
+        }
+        if(atomicMap.get(Commands.isolate).get()){
+            Logging.out(this.id+" is isolated ");
+            return;
+        }  
         
         if(atomicMap.get(Commands.crashGChange).compareAndSet(true, false)){
             onCrash(new Crash());
@@ -82,9 +95,15 @@ public class GroupMember extends Node{
     @Override
     protected void onMessage(ChatMsg msg){
         super.onMessage(msg);
-        
-        if(atomicMap.get(Commands.crash).get()) return;   
-        if(atomicMap.get(Commands.isolate).get()) return;
+        Logging.out(this.id+" received message from "+msg.senderID);                                                     
+        if(atomicMap.get(Commands.crash).get()){
+            Logging.out(this.id+" is crashed ");
+            return;
+        }
+        if(atomicMap.get(Commands.isolate).get()){
+            Logging.out(this.id+" is isolated ");
+            return;
+        } 
              
         if (msg.senderID.intValue()==0){
             checkMessageTimeout();
@@ -123,8 +142,15 @@ public class GroupMember extends Node{
     }
 
     protected void onMessageTimeout(MessageTimeout msg){
-        Logging.out(this.id+" onTimeout");
-        
+        Logging.out(this.id+" onTimeout");                                                 
+        if(atomicMap.get(Commands.crash).get()){
+            Logging.out(this.id+" is crashed ");
+            return;
+        }
+        if(atomicMap.get(Commands.isolate).get()){
+            Logging.out(this.id+" is isolated ");
+            return;
+        } 
         //stop timers and clear state
         cancelTimers();
         init(-1);

@@ -35,20 +35,19 @@ public class Node extends AbstractActor {
     protected Cancellable sendTimer;    //schedule message, used to send a multicast message
     private Map<Integer,Cancellable> flushTimeout;  //schedule message for each member, used during all-to-all
 
-    protected static Map<String, AtomicBoolean> atomicMap; //hashmap for test commands handling
-    static {
-        // init an atomic boolean hashmap for test commands handling
+    protected Map<String, AtomicBoolean> atomicMap; //hashmap for test commands handling
+    
+	protected Node(int id, String remotePath) {
+		this.id = id;
+		this.remotePath = remotePath;
+        
         atomicMap = new HashMap<>();
         atomicMap.put(Commands.crash, new AtomicBoolean());             
         atomicMap.put(Commands.crashMessage, new AtomicBoolean());             
         atomicMap.put(Commands.crashMulticast, new AtomicBoolean());             
         atomicMap.put(Commands.crashA2A, new AtomicBoolean());             
         atomicMap.put(Commands.crashViewI, new AtomicBoolean());
-        atomicMap.put(Commands.isolate, new AtomicBoolean());  
-    }
-	protected Node(int id, String remotePath) {
-		this.id = id;
-		this.remotePath = remotePath;
+        atomicMap.put(Commands.isolate, new AtomicBoolean()); 
 
         this.init(id);            
 	}
@@ -129,8 +128,14 @@ public class Node extends AbstractActor {
     */
     protected void onMessage(ChatMsg msg){
         
-        if(atomicMap.get(Commands.crash).get()) return;
-        if(atomicMap.get(Commands.isolate).get()) return;
+        if(atomicMap.get(Commands.crash).get()){
+            Logging.out(this.id+" is crashed ");
+            return;
+        }
+        if(atomicMap.get(Commands.isolate).get()){
+            Logging.out(this.id+" is isolated ");
+            return;
+        }
         if(atomicMap.get(Commands.crashMessage).compareAndSet(true, false)){
             onCrash(new Crash());
             return;
@@ -165,6 +170,8 @@ public class Node extends AbstractActor {
     }
 
     protected void installView(InstallView msg){
+        if(atomicMap.get(Commands.crash).get()) return;
+
         List<ChatMsg> buffered = this.state.getBufferedMessages();
         printBufferMessages(buffered);
         while(this.state.getNextView()){
@@ -183,6 +190,7 @@ public class Node extends AbstractActor {
             onCrash(new Crash());
             return;
         }
+        if(atomicMap.get(Commands.crash).get()) return; 
         
         Boolean alone = this.state.getGroupViewSize().intValue()==1;
         if (alone==false) this.sendTimer = sendSelfAsyncMessage(Network.Td/2, new SendMessage());
@@ -193,6 +201,7 @@ public class Node extends AbstractActor {
     */
     protected void onSendMessage(SendMessage msg){
         if(atomicMap.get(Commands.crash).get()) return;
+        if(atomicMap.get(Commands.isolate).get()) return;
         
         printMulticastMessage();
         ChatMsg newMsg = new ChatMsg(

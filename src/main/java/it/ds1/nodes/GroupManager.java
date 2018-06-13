@@ -30,22 +30,20 @@ public class GroupManager extends Node{
 
     private Map<Integer,Cancellable> messageTimeout;
 
-    static {
-        // init an atomic boolean hashmap for test commands handling
-        atomicMap.put(Commands.McrashJoin, new AtomicBoolean());
-        atomicMap.put(Commands.McrashMessage, new AtomicBoolean());
-        atomicMap.put(Commands.McrashViewI, new AtomicBoolean());
-        atomicMap.put(Commands.joinOnJoin, new AtomicBoolean());        
-        atomicMap.put(Commands.joinOnMulticast, new AtomicBoolean());
-        atomicMap.put(Commands.joinOnMessage, new AtomicBoolean());
-        atomicMap.put(Commands.joinOnViewI, new AtomicBoolean()); 
-    }
     private GroupManager(int id, String remotePath) {
         super(id, remotePath);
     }
 
     @Override 
     protected void init(int id){
+        atomicMap.put(Commands.McrashJoin, new AtomicBoolean());
+        atomicMap.put(Commands.McrashMessage, new AtomicBoolean());
+        atomicMap.put(Commands.McrashViewI, new AtomicBoolean());
+        atomicMap.put(Commands.joinOnJoin, new AtomicBoolean());        
+        atomicMap.put(Commands.joinOnMulticast, new AtomicBoolean());
+        atomicMap.put(Commands.joinOnMessage, new AtomicBoolean());
+        atomicMap.put(Commands.joinOnViewI, new AtomicBoolean());
+
         super.init(id);
 
         this.messageTimeout = new HashMap<>();
@@ -64,12 +62,17 @@ public class GroupManager extends Node{
 	}
 
 	private void onJoin(Join message) {
-        if(atomicMap.get(Commands.crash).get()) return;
-        if(atomicMap.get(Commands.isolate).get()) return;
+        Logging.out(this.id+" join request from "+nodesID);        
+        if(atomicMap.get(Commands.crash).get()){
+            Logging.out(this.id+" is crashed ");
+            return;
+        }
+        if(atomicMap.get(Commands.isolate).get()){
+            Logging.out(this.id+" is isolated ");
+            return;
+        }
         
-        if(atomicMap.get(Commands.joinOnJoin).compareAndSet(true, false)) createLocalNode();        
-
-        Logging.out(this.id+" join request from "+nodesID);
+        if(atomicMap.get(Commands.joinOnJoin).compareAndSet(true, false)) createLocalNode();
         cancelTimers();
 
         this.state.putMember(nodesID, getSender());        
@@ -99,8 +102,14 @@ public class GroupManager extends Node{
 
     @Override
     protected void multicast(Serializable m){
-        if(atomicMap.get(Commands.crash).get()) return;   
-        if(atomicMap.get(Commands.isolate).get()) return;      
+        if(atomicMap.get(Commands.crash).get()){
+            Logging.out(this.id+" is crashed ");
+            return;
+        }
+        if(atomicMap.get(Commands.isolate).get()){
+            Logging.out(this.id+" is isolated ");
+            return;
+        }   
         if(atomicMap.get(Commands.joinOnMulticast).compareAndSet(true, false)) createLocalNode();        
         super.multicast(m);        
     }
@@ -109,8 +118,12 @@ public class GroupManager extends Node{
     protected void onMessage(ChatMsg msg){
         super.onMessage(msg);
 
-        if(atomicMap.get(Commands.crash).get()) return;   
-        if(atomicMap.get(Commands.isolate).get()) return;
+        if(atomicMap.get(Commands.crash).get()){
+            return;
+        }
+        if(atomicMap.get(Commands.isolate).get()){
+            return;
+        }
         if(atomicMap.get(Commands.McrashMessage).compareAndSet(true, false)) sendRandom(new Crash());
         if(atomicMap.get(Commands.joinOnMessage).compareAndSet(true, false)) createLocalNode();        
         
@@ -121,12 +134,14 @@ public class GroupManager extends Node{
         }
     }
 
-    private void onCrashDetected(int id){     
-        // Logging.log(this.state.getGroupViewSeqnum(),
-        //     "crash detected "+id);   
+    private void onCrashDetected(int id){
+        Logging.out(this.id+" crash detected "+id);        
         cancelTimers();
 
-        if(atomicMap.get(Commands.crash).get()) return;
+        if(atomicMap.get(Commands.crash).get()){
+            Logging.out(this.id+" is crashed ");
+            return;
+        }
         this.state.removeMember(id);
 
         Integer groupSize = this.state.getGroupViewSize()-1;
