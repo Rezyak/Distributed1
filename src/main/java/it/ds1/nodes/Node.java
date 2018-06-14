@@ -93,6 +93,7 @@ public class Node extends AbstractActor {
                 return atomicMap.get(Commands.crash).get();
             }
         });
+        printMulticastMessage();
     }
 
     /**
@@ -203,7 +204,6 @@ public class Node extends AbstractActor {
         if(atomicMap.get(Commands.crash).get()) return;
         if(atomicMap.get(Commands.isolate).get()) return;
         
-        printMulticastMessage();
         ChatMsg newMsg = new ChatMsg(
             this.msgSeqnum,
             this.id,
