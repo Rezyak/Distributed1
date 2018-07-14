@@ -41,7 +41,7 @@ public class State {
     }
 
     public Boolean shouldDeliver(ChatMsg msg){
-        Boolean selfMessage = msg.senderID.intValue() == this.nodeID; 
+        Boolean selfMessage = msg.senderID.intValue() == this.nodeID.intValue(); 
         if(selfMessage) return false;
 
         Integer msgGroupView = msg.groupViewSeqnum;
