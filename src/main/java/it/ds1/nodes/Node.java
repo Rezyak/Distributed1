@@ -93,7 +93,7 @@ public class Node extends AbstractActor {
                 return atomicMap.get(Commands.crash).get();
             }
         });
-        if (sent!=0)    printMulticastMessage();
+        if (sent!=0 && (m instanceof ChatMsg))    printMulticastMessage();
     }
 
     /**
