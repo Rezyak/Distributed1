@@ -100,7 +100,7 @@ public class State {
 
     public Boolean shouldInstallView(Integer view){
         Integer viewToInstall = view.intValue()+1;
-        Logging.out("sould install view "+viewToInstall);
+        Logging.out("should install view "+viewToInstall);
         
         Integer currentGroupView = getGroupViewSeqnum();
         if (currentGroupView!=null && viewToInstall<=currentGroupView) return false;

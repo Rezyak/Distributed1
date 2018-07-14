@@ -1,8 +1,10 @@
 const logs = './logs/'
 const fs = require('fs')
+const os = require("os")
 
 try{
     let viewList = []
+    let file_path_test = logs+'for_prof_evaluation.log'
 
     // synchronous read of files in logs
     fs.readdirSync(logs).forEach(file => {
@@ -31,6 +33,9 @@ try{
         //dict of all nodes in that view
         let lines_by_id = {}
         for (let line of view.lines){
+            //convert into prof log checker
+            fs.appendFileSync(file_path_test, line+os.EOL) 
+
             let id = line.match(/^[0-9]+/)
             let within = line.match(/within [0-9]+/)
     
