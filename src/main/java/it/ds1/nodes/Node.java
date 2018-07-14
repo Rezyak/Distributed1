@@ -55,7 +55,7 @@ public class Node extends AbstractActor {
     protected void init(int id){
         this.state = new State(id);
 
-        this.msgSeqnum = 0;  
+        this.msgSeqnum = -1;  
         this.sendTimer = null;
         this.flushTimeout = new HashMap<>();    
     }
@@ -88,12 +88,12 @@ public class Node extends AbstractActor {
         }
         if(atomicMap.get(Commands.isolate).get()) return;
         
-        Network.delayMulticast(m, this.state, getSelf(), new Network.Action(){
+        int sent = Network.delayMulticast(m, this.state, getSelf(), new Network.Action(){
             public Boolean shouldCrash(){
                 return atomicMap.get(Commands.crash).get();
             }
         });
-        printMulticastMessage();
+        if (sent!=0)    printMulticastMessage();
     }
 
     /**
@@ -203,6 +203,7 @@ public class Node extends AbstractActor {
     protected void onSendMessage(SendMessage msg){
         if(atomicMap.get(Commands.crash).get()) return;
         if(atomicMap.get(Commands.isolate).get()) return;
+        this.msgSeqnum += 1;
         
         ChatMsg newMsg = new ChatMsg(
             this.msgSeqnum,
@@ -211,7 +212,6 @@ public class Node extends AbstractActor {
         );
         multicast(newMsg);
 
-        this.msgSeqnum += 1;
         
         this.sendTimer = sendSelfAsyncMessage(Network.Td/2, new SendMessage());
     }
