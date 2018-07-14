@@ -42,7 +42,7 @@ public class Network {
         });
     }
 
-    public static void delayMulticast(Serializable m, State state, ActorRef self, Action action) {
+    public static int delayMulticast(Serializable m, State state, ActorRef self, Action action) {
         List<Integer> memberList = state.getMemberList();
         int[] sent = {0};
         Integer minSend = 1;
@@ -65,6 +65,7 @@ public class Network {
                                            
             }
         });
+        return sent[0]
     }
     public static void delayAllToAll(Integer seqnum, Integer id, State state, ActorRef self, Action action){
         state.getCurrentMessagesInstance().shuffledForEach(new MessageMap.Action<ChatMsg>(){
