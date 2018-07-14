@@ -95,13 +95,17 @@ public class GroupManager extends Node{
         );
         this.state.groupViewChange(updateView);        
         
-        multicast(updateView);
+        updateViewMulticast(updateView);
         setFlushTimeout();                    
         allToAll(nextGroupViewSeqnum-1, this.id);        
     }
 
+    private void updateViewMulticast(GroupView m){
+        this.generalMulticast(m);
+    }
+
     @Override
-    protected void multicast(Serializable m){
+    protected void multicast(ChatMsg m){
         if(atomicMap.get(Commands.crash).get()){
             Logging.out(this.id+" is crashed ");
             return;

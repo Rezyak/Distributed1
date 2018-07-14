@@ -76,24 +76,29 @@ public class Node extends AbstractActor {
         );
     }
 
+    
+    protected void multicast(ChatMsg m) {
+        int sent = generalMulticast(m);
+        if (sent!=0)    printMulticastMessage();
+    }
+
     /**
     *   each node can perform a multicast call given a message m
     *   -   if should crash during multicast set onCrash
     *   -   implement shouldCrash interface called from Network
     *   -   if should be isolated do not multicast
     */
-    protected void multicast(Serializable m) {
+    protected int generalMulticast(Serializable m){
         if (atomicMap.get(Commands.crashMulticast).compareAndSet(true, false)){
             onCrash(new Crash());
         }
-        if(atomicMap.get(Commands.isolate).get()) return;
+        if(atomicMap.get(Commands.isolate).get()) return 0;
         
-        int sent = Network.delayMulticast(m, this.state, getSelf(), new Network.Action(){
+        return Network.delayMulticast(m, this.state, getSelf(), new Network.Action(){
             public Boolean shouldCrash(){
                 return atomicMap.get(Commands.crash).get();
             }
         });
-        if (sent!=0 && (m instanceof ChatMsg))    printMulticastMessage();
     }
 
     /**
