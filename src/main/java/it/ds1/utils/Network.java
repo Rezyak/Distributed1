@@ -65,7 +65,7 @@ public class Network {
                                            
             }
         });
-        return sent[0]
+        return sent[0];
     }
     public static void delayAllToAll(Integer seqnum, Integer id, State state, ActorRef self, Action action){
         state.getCurrentMessagesInstance().shuffledForEach(new MessageMap.Action<ChatMsg>(){
