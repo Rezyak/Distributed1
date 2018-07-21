@@ -141,6 +141,12 @@ public class GroupMember extends Node{
 		}
     }
 
+    @Override
+    protected void onAttach(Attach msg){
+        super.onAttach(msg);
+        Logging.out("wainting for manager message...");
+        checkMessageTimeout();
+    }
     protected void onMessageTimeout(MessageTimeout msg){
         Logging.out(this.id+" onTimeout");                                                 
         if(atomicMap.get(Commands.crash).get()){

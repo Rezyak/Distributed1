@@ -76,7 +76,7 @@ try{
         /**
         *   - multicasts do not cross epoch boundaries
         *       ** If there are multicasts for messages m1 and m2, and a view change occurs
-        *       ** to satisfy view synchrony, these multicasts must complete before the new view is installed
+        *       ** to satisfy virtual synchrony, these multicasts must complete before the new view is installed
         *   - A message multicast in an epoch E defined by view V should either
         *       ** be delivered within E by all operational participants
         *       ** be delivered by none of operational participants (only allowed if the sender crashes)
