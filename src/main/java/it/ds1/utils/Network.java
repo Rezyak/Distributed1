@@ -23,6 +23,9 @@ public class Network {
 
     private static Random rnd = new Random();
 
+    /**
+    *   Action Interface used to tell if a node is crashed
+    */
     public interface Action{
         public Boolean shouldCrash();
     }
@@ -41,7 +44,12 @@ public class Network {
             }
         });
     }
-
+    
+    /**
+    *   Sends the message m to all members taken from state
+    *   - do not send to itself
+    *   - if it should crash during multicast, send to a random number n of nodes then do not send anything
+    */
     public static int delayMulticast(Serializable m, State state, ActorRef self, Action action) {
         List<Integer> memberList = state.getMemberList();
         int[] sent = {0};
@@ -67,6 +75,12 @@ public class Network {
         });
         return sent[0];
     }
+
+    /**
+    *   all-to-all implementation
+    *   - send all unstable messages
+    *   - send Flush message to all members
+    */
     public static void delayAllToAll(Integer seqnum, Integer id, State state, ActorRef self, Action action){
         state.getCurrentMessagesInstance().shuffledForEach(new MessageMap.Action<ChatMsg>(){
             @Override
@@ -77,44 +91,4 @@ public class Network {
         Logging.log(state.getGroupViewSeqnum(), id+" all-to-all "+seqnum);        
         delayMulticast(new Flush(seqnum, id), state, self, action);
     }
-
-    /**
-    * it brokes the fifoness of multicast through unicast
-    */
-    // private static void delayUnicast(int time, Serializable m, ActorRef dst, ActorRef src, ActorContext context) {
-    //     context.system().scheduler().scheduleOnce(
-    //         Duration.create(time, TimeUnit.MILLISECONDS),  
-    //         dst,
-    //         m,
-    //         context.system().dispatcher(), 
-    //         src
-    //     );
-    // }
-    // public static void delayMulticast(Serializable m, State state, ActorRef self, ActorContext context) {
-    //     int[] delay = new int[1];
-    //     state.getGroupViewInstance().shuffledForEach(new GroupViewMap.Action<ActorRef>(){
-    //         @Override
-    //         public void perform(Integer id, ActorRef nodeRef){            
-    //             if (self.compareTo(nodeRef)!=0){
-    //                 // delay(rnd.nextInt(MAXDELAY)+1); 
-    //                 // nodeRef.tell(m, self);
-    //                 delay[0] += rnd.nextInt(MAXDELAY)+1; 
-    //                 Logging.log(this.state.getGroupViewSeqnum(),
-                        // "delay "+delay[0]);
-    //                 delayUnicast(delay[0], m, nodeRef, self, context);
-    //             }
-                                           
-    //         }
-    //     });
-    // }
-    // public static void delayAllToAll(Integer seqnum, Integer id, State state, ActorRef self, ActorContext context){
-
-    //     state.getMessagesInstance().shuffledForEach(new MessageMap.Action<ChatMsg>(){
-    //         @Override
-    //         public void perform(Integer id, ChatMsg msg){
-    //             delayMulticast(msg, state, self, context);                         
-    //         }
-    //     });      
-    //     delayMulticast(new Flush(seqnum, id), state, self, context);
-    // }
 }

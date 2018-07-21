@@ -135,11 +135,11 @@ public class Node extends AbstractActor {
     protected void onMessage(ChatMsg msg){
         
         if(atomicMap.get(Commands.crash).get()){
-            Logging.out(this.id+" is crashed ");
+            // Logging.out(this.id+" is crashed ");
             return;
         }
         if(atomicMap.get(Commands.isolate).get()){
-            Logging.out(this.id+" is isolated ");
+            // Logging.out(this.id+" is isolated ");
             return;
         }
         if(atomicMap.get(Commands.crashMessage).compareAndSet(true, false)){
@@ -149,7 +149,7 @@ public class Node extends AbstractActor {
 
         if (this.state.shouldDeliver(msg)){
             printDeliverMessage(msg);
-        }        
+        }
     }
     
     /**
@@ -175,6 +175,11 @@ public class Node extends AbstractActor {
         }
     }
 
+    /**
+    *   Before installing the deliver the messages in the buffer
+    *   - iterate through all Views mapped (eg. consecutive group changes)
+    *   - print buffered messages in the View installed
+    */
     protected void installView(InstallView msg){
         if(atomicMap.get(Commands.crash).get()) return;
 
@@ -189,7 +194,10 @@ public class Node extends AbstractActor {
         onViewInstalled();
     }
 
-    
+    /**
+    *   Called once all views are installed
+    *   - if the node is not alone set SendMessage timer
+    */
     protected void onViewInstalled(){        
         cancelTimers();      
         if(atomicMap.get(Commands.crashViewI).compareAndSet(true, false)){

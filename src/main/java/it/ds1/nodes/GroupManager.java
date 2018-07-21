@@ -47,6 +47,9 @@ public class GroupManager extends Node{
         super.init(id);
 
         this.messageTimeout = new HashMap<>();
+
+        // put himself into the member list
+        // tell myself to install the view
         this.state.putMember(id, getSelf());
 
         GroupView updateView = new GroupView(
@@ -61,16 +64,22 @@ public class GroupManager extends Node{
 		return Props.create(GroupManager.class, () -> new GroupManager(id, remotePath));
 	}
 
+    /**
+    *   on receiving a join request from a node
+    *   - if should be crashed or isolated do nothing
+    *   - if should receive a join during a join, create a local node
+    *   - add the member, send him his new ID, update the Group View
+    */
 	private void onJoin(Join message) {
-        Logging.out(this.id+" join request from "+nodesID);        
         if(atomicMap.get(Commands.crash).get()){
-            Logging.out(this.id+" is crashed ");
+            // Logging.out(this.id+" is crashed ");
             return;
         }
         if(atomicMap.get(Commands.isolate).get()){
-            Logging.out(this.id+" is isolated ");
+            // Logging.out(this.id+" is isolated ");
             return;
         }
+        Logging.out(this.id+" join request from "+nodesID);        
         
         if(atomicMap.get(Commands.joinOnJoin).compareAndSet(true, false)) createLocalNode();
         cancelTimers();
@@ -86,6 +95,11 @@ public class GroupManager extends Node{
         updateGroupView();
 	}
 
+    /**
+    *   update the Group View seq. number
+    *   - send a multicast message for Group View Change
+    *   - all-to-all
+    */
     private void updateGroupView(){
         Integer nextGroupViewSeqnum = this.state.getMaxView()+1;
 
@@ -104,20 +118,27 @@ public class GroupManager extends Node{
         this.generalMulticast(m);
     }
 
+    /**
+    *   Check testing commands before calling super
+    */
     @Override
     protected void multicast(ChatMsg m){
         if(atomicMap.get(Commands.crash).get()){
-            Logging.out(this.id+" is crashed ");
+            // Logging.out(this.id+" is crashed ");
             return;
         }
         if(atomicMap.get(Commands.isolate).get()){
-            Logging.out(this.id+" is isolated ");
+            // Logging.out(this.id+" is isolated ");
             return;
         }   
         if(atomicMap.get(Commands.joinOnMulticast).compareAndSet(true, false)) createLocalNode();        
         super.multicast(m);        
     }
 
+    /**
+    *   After handling the message reception
+    *   - set a timeout for crash detection
+    */
     @Override
     protected void onMessage(ChatMsg msg){
         super.onMessage(msg);
@@ -138,14 +159,21 @@ public class GroupManager extends Node{
         }
     }
 
+    /**
+    *   If a crash is detected
+    *   - remove the node from member list
+    *   - if the manager is alore, custom install view
+    *   - if it is not, update the Group View in the standard way
+    */
     private void onCrashDetected(int id){
+        if(atomicMap.get(Commands.crash).get()){
+            // Logging.out(this.id+" is crashed ");
+            return;
+        }
+
         Logging.out(this.id+" crash detected "+id);        
         cancelTimers();
 
-        if(atomicMap.get(Commands.crash).get()){
-            Logging.out(this.id+" is crashed ");
-            return;
-        }
         this.state.removeMember(id);
 
         Integer groupSize = this.state.getGroupViewSize()-1;
@@ -181,6 +209,10 @@ public class GroupManager extends Node{
         onCrashDetected(msg.id);
     }
 
+    /**
+    *   After the View is installed
+    *   - set timeouts for each node in the member list
+    */
     @Override
     protected void onViewInstalled(){
         super.onViewInstalled();
@@ -248,6 +280,7 @@ public class GroupManager extends Node{
         Logging.out("creating node...");
         App.createLocalMember();
     }
+
     private void sendRandom(Serializable m){
         List<Integer> memberList = this.state.getMemberList();
         Integer members = memberList.size();

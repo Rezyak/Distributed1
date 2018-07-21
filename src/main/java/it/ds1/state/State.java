@@ -22,8 +22,12 @@ public class State {
     // current state
     protected GroupViewMap groupView;
 
-    //buffered state
-    protected Map<Integer, GroupView> groupViewMap;  //double ended queue used form multiples View Changes 
+    /**
+    *   In order to maintain the state of GroupViews and Messages/Flushs
+    *   - build a map: GroupView seq. num -> GroupView class
+    *   -build a map: GroupView seq. num -> MessageMap class
+    */
+    protected Map<Integer, GroupView> groupViewMap;
     protected Map<Integer, MessageMap> messagesMap;
 
     public State(Integer id){
@@ -33,6 +37,9 @@ public class State {
         this.messagesMap = new HashMap<>();
     }
 
+    /**
+    *   Add to the map the GroupView change message received
+    */
     public void groupViewChange(GroupView message){
         this.groupViewMap.put(message.groupViewSeqnum, message);
 
@@ -40,12 +47,20 @@ public class State {
         putAllMembers(message);
     }
 
+    /**
+    *   In order to determine whether deliver or not a message
+    *   - get the Message map of the MESSAGE VIEW
+    *   - check if the message is for the CURRENT View
+    *       * if yes, try to insert the message
+    *       * if not, add the message to the buffer 
+    *       (once the view is installed the buffered messages will be delivered)
+    */
     public Boolean shouldDeliver(ChatMsg msg){
         Boolean selfMessage = msg.senderID.intValue() == this.nodeID.intValue(); 
         if(selfMessage) return false;
 
         Integer msgGroupView = msg.groupViewSeqnum;
-        Logging.out("check message buffer from "+msg.senderID+" in "+msgGroupView+" seq "+msg.msgSeqnum);        
+        // Logging.out("check message buffer from "+msg.senderID+" in "+msgGroupView+" seq "+msg.msgSeqnum);        
         
         MessageMap mmap = messagesMap.get(msgGroupView);
         if (mmap == null){
@@ -66,6 +81,14 @@ public class State {
             return false;
         }
     }
+
+    /**
+    *   Given a message 
+    *   - if the message do not already exists, insert and return true
+    *   - if  the seq. number is grater than the old one, return true
+    *       * it is inserted as the new unstable message (old one can be deleted)
+    *   - return false otherwise
+    */
     private Boolean insertNewMessage(ChatMsg msg){
         Integer msgGroupView = msg.groupViewSeqnum;
         MessageMap mmap = messagesMap.get(msgGroupView);
@@ -84,6 +107,11 @@ public class State {
         return false;
     }
 
+    /**
+    *   Given a Flush message
+    *   - get the GroupView map of the FLUSH MESSAGE
+    *   - put the flush in the Set
+    */
     public void addFlush(Flush msg){     
         Boolean selfMessage = msg.senderID.intValue() == this.nodeID; 
         if (selfMessage) return;
@@ -94,13 +122,17 @@ public class State {
             messagesMap.put(msgGroupView, new MessageMap());
             mmap = messagesMap.get(msgGroupView);
         }
-        Logging.out("receive flush "+msgGroupView+" from "+msg.senderID);
+        // Logging.out("receive flush "+msgGroupView+" from "+msg.senderID);
         mmap.setFlush(msg);
     }
 
+    /**
+    *   Check whether install the view or not
+    *   - if received flushes from all members
+    */
     public Boolean shouldInstallView(Integer view){
         Integer viewToInstall = view.intValue()+1;
-        Logging.out("should install view "+viewToInstall);
+        // Logging.out("should install view "+viewToInstall);
         
         Integer currentGroupView = getGroupViewSeqnum();
         if (currentGroupView!=null && viewToInstall<=currentGroupView) return false;
@@ -166,21 +198,18 @@ public class State {
         if (mmap == null) return new MessageMap();
         return mmap;
     }
+
     // ________________Current View________________
+
     public Integer getID(){return this.nodeID;}
+    public void setID(Integer id){this.nodeID = id;}
     
+    // ________________Group View________________
     public GroupViewMap getGroupViewInstance(){
         return this.groupView;
     }
-
     public Map<Integer, ActorRef> getGroupView(){
         return this.groupView.getMap();
-    }
-    public ActorRef getMember(Integer id){
-        return this.groupView.getMember(id);
-    }
-    public List<Integer> getMemberList(){
-        return new ArrayList(getGroupView().keySet());
     }
     public Integer getGroupViewSize(){
         return getMemberList().size();
@@ -192,15 +221,20 @@ public class State {
     public void setGroupViewSeqnum(GroupView msg){
         this.groupView.setSeqnum(msg.groupViewSeqnum);
     }
-    
+
+    // ________________Members________________
+    public ActorRef getMember(Integer id){
+        return this.groupView.getMember(id);
+    }
+    public List<Integer> getMemberList(){
+        return new ArrayList(getGroupView().keySet());
+    }
     public void putAllMembers(GroupView message){
 		this.groupView.putAllMember(message.groupView);
     }
-
     public void putMember(Integer id, ActorRef nodeRef){
 		this.groupView.putMember(id, nodeRef);        
     }
-    
     public void removeMember(Integer id){
 		this.groupView.removeMember(id);        
     }    
@@ -208,10 +242,6 @@ public class State {
         return getMemberList().contains(id);
     }
 
-    
-
-    // public GroupViewMap getGroupViewInstance(){return this.groupView;}
-    // public MessageMap getMessagesInstance(){return this.messages;}
     
     protected String commaSeparatedList(){
         List<Integer> members = getMemberList();

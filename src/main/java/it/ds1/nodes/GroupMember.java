@@ -35,6 +35,11 @@ public class GroupMember extends Node{
 		return Props.create(GroupMember.class, () -> new GroupMember(id, remotePath));
 	}
 
+    /**
+    *   Join request to the manager
+    *   - if should crash on prestart, crash
+    *   - if not, set timeout for messages received from manager
+    */
     public void preStart() {
 		if (this.remotePath != null) {      
             if(atomicMap.get(Commands.isolate).get()==false){
@@ -50,13 +55,13 @@ public class GroupMember extends Node{
 	}
     
     private void onJoinID(JoinID message) {
-        Logging.out(this.id+" received id "+message.id);                
+        // Logging.out(this.id+" received id "+message.id);                
         if(atomicMap.get(Commands.crash).get()){
-            Logging.out(this.id+" is crashed ");
+            // Logging.out(this.id+" is crashed ");
             return;
         }
         if(atomicMap.get(Commands.isolate).get()){
-            Logging.out(this.id+" is isolated ");
+            // Logging.out(this.id+" is isolated ");
             return;
         }   
         
@@ -65,18 +70,24 @@ public class GroupMember extends Node{
             return;
         }       
         
-        this.id = message.id; 
+        this.id = message.id;
+        this.state.setID(this.id);
         checkMessageTimeout();
 	}
 
+    /**
+    *   On receiving a Group View change request from the manager
+    *   - change the view
+    *   - do an all-to-all
+    */
     private void onGroupView(GroupView message) {  
-        Logging.out(this.id+" received group change ");                                                     
+        // Logging.out(this.id+" received group change ");                                                     
         if(atomicMap.get(Commands.crash).get()){
-            Logging.out(this.id+" is crashed ");
+            // Logging.out(this.id+" is crashed ");
             return;
         }
         if(atomicMap.get(Commands.isolate).get()){
-            Logging.out(this.id+" is isolated ");
+            // Logging.out(this.id+" is isolated ");
             return;
         }  
         
@@ -92,16 +103,20 @@ public class GroupMember extends Node{
 	}
     
 
+    /**
+    *   After handling the message reception
+    *   - set a timeout for manager crash detection
+    */
     @Override
     protected void onMessage(ChatMsg msg){
         super.onMessage(msg);
-        Logging.out(this.id+" received message from "+msg.senderID);                                                     
+        // Logging.out(this.id+" received message from "+msg.senderID);                                                     
         if(atomicMap.get(Commands.crash).get()){
-            Logging.out(this.id+" is crashed ");
+            // Logging.out(this.id+" is crashed ");
             return;
         }
         if(atomicMap.get(Commands.isolate).get()){
-            Logging.out(this.id+" is isolated ");
+            // Logging.out(this.id+" is isolated ");
             return;
         } 
              
@@ -135,7 +150,8 @@ public class GroupMember extends Node{
         if(atomicMap.get(Commands.crash).get()) return;        
         if (this.remotePath != null) {      
             if(atomicMap.get(Commands.isolate).get()==false){
-                //TODO check 
+                //TODO decided to not handle crash detection in member node
+                // to much overhead
     			// getContext().actorSelection(remotePath).tell(new FlushTimeout(msg.id), getSelf());
             }      
 		}
@@ -147,16 +163,19 @@ public class GroupMember extends Node{
         Logging.out("wainting for manager message...");
         checkMessageTimeout();
     }
+
     protected void onMessageTimeout(MessageTimeout msg){
-        Logging.out(this.id+" onTimeout");                                                 
         if(atomicMap.get(Commands.crash).get()){
-            Logging.out(this.id+" is crashed ");
+            // Logging.out(this.id+" is crashed ");
             return;
         }
         if(atomicMap.get(Commands.isolate).get()){
             Logging.out(this.id+" is isolated ");
             return;
         } 
+
+        Logging.out(this.id+" onTimeout");                                                 
+        
         //stop timers and clear state
         cancelTimers();
         init(-1);
@@ -164,6 +183,7 @@ public class GroupMember extends Node{
         Logging.out(this.id+" rejoin request");
         preStart();
     }
+
     @Override    
     protected void onInit(Init msg){
         cancelTimers();
