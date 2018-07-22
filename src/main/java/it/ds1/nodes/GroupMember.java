@@ -55,7 +55,6 @@ public class GroupMember extends Node{
 	}
     
     private void onJoinID(JoinID message) {
-        // Logging.out(this.id+" received id "+message.id);                
         if(atomicMap.get(Commands.crash).get()){
             // Logging.out(this.id+" is crashed ");
             return;
@@ -69,6 +68,7 @@ public class GroupMember extends Node{
             onCrash(new Crash());
             return;
         }       
+        Logging.out(this.id+" received id "+message.id);                
         
         this.id = message.id;
         this.state.setID(this.id);
@@ -160,7 +160,7 @@ public class GroupMember extends Node{
     @Override
     protected void onAttach(Attach msg){
         super.onAttach(msg);
-        Logging.out("wainting for manager message...");
+        Logging.out("waiting for manager message...");
         checkMessageTimeout();
     }
 

@@ -334,7 +334,9 @@ public class Node extends AbstractActor {
 
     protected void printInstallView(){
         Logging.log(this.state.getGroupViewSeqnum(),
-            this.id+" install view "+this.state.getGroupViewSeqnum()+" "+this.state.commaSeparatedList());        
+            this.id+" install view "+this.state.getGroupViewSeqnum()+" "+this.state.commaSeparatedList());
+        Logging.out(this.id+" install view "+this.state.getGroupViewSeqnum()+" "+this.state.commaSeparatedList());                
+
     }
     protected void printMulticastMessage(){
         Logging.log(this.state.getGroupViewSeqnum(),
