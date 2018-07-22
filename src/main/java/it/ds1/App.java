@@ -198,11 +198,6 @@ class CommandReader extends Thread{
             });
         }
         else{
-            commands.put(Commands.crashPrestart, new Command(){
-                public void call() { 
-                    receiver.tell(new CrashPrestart(), null);
-                }
-            });
             commands.put(Commands.crashJoinID, new Command(){
                 public void call() { 
                     receiver.tell(new CrashJoinID(), null);
@@ -287,40 +282,40 @@ class CommandReader extends Thread{
             }
         });
 
-        commands.put(Commands.TEST, new Command(){
-            public void call() { 
-                Logging.out("****Starting TEST****");
-                Logging.out("====> After last join <q> & run <node evaluation.js>");
+        // commands.put(Commands.TEST, new Command(){
+        //     public void call() { 
+        //         Logging.out("****Starting TEST****");
+        //         Logging.out("====> After last join <q> & run <node evaluation.js>");
                 
-                Random rnd = new Random();
-                int[] nodeid = {1};
+        //         Random rnd = new Random();
+        //         int[] nodeid = {1};
                 
-                for (Integer i=0; i<2; i++){
-                    for(Integer j=0; j<5; j++){
-                        Boolean createNode = Math.random() <0.85;
-                        Boolean crashNode = Math.random() <0.6;
+        //         for (Integer i=0; i<2; i++){
+        //             for(Integer j=0; j<5; j++){
+        //                 Boolean createNode = Math.random() <0.85;
+        //                 Boolean crashNode = Math.random() <0.6;
                                                 
-                        if (createNode){
-                            Logging.out("creating node "+nodeid[0]+"...");
-                            nodeid[0]+=1;
-                            Runnable r = new Runnable() {
-                                public void run() {
-                                    App.createLocalMember();
-                                    Network.delay(rnd.nextInt(1000));                        
+        //                 if (createNode){
+        //                     Logging.out("creating node "+nodeid[0]+"...");
+        //                     nodeid[0]+=1;
+        //                     Runnable r = new Runnable() {
+        //                         public void run() {
+        //                             App.createLocalMember();
+        //                             Network.delay(rnd.nextInt(1000));                        
                                     
-                                    if (crashNode){
-                                        Logging.out("killing a node...");                            
-                                        receiver.tell(new CrashRandom(), null);
-                                    }  
-                                }
-                            };
+        //                             if (crashNode){
+        //                                 Logging.out("killing a node...");                            
+        //                                 receiver.tell(new CrashRandom(), null);
+        //                             }  
+        //                         }
+        //                     };
 
-                            new Thread(r).start();
-                        } 
-                    }                
-                }
-            }
-        });
+        //                     new Thread(r).start();
+        //                 } 
+        //             }                
+        //         }
+        //     }
+        // });
     }
     
 

@@ -9,7 +9,6 @@ class Commands{
     public final static String joinOnMessage = "joinOnMessage";
     public final static String joinOnViewI = "joinOnViewI";
 
-    public final static String crashPrestart = "crashPrestart";
     public final static String crashJoinID = "crashJoinID";
     public final static String crashGChange = "crashGChange";
 

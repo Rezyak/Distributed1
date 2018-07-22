@@ -21,7 +21,6 @@ public class Messages {
     public static class JoinOnViewI implements Serializable {}
     public static class JoinOnJoin implements Serializable {}
 
-    public static class CrashPrestart implements Serializable {}
     public static class CrashJoinID implements Serializable {}
     public static class CrashGChange implements Serializable {}
     public static class CrashMessage implements Serializable {}

@@ -19,13 +19,12 @@ public class GroupMember extends Node{
     
     private GroupMember(int id, String remotePath) {
         super(id, remotePath);   
-        atomicMap.put(Commands.crashPrestart, new AtomicBoolean());
-        atomicMap.put(Commands.crashJoinID, new AtomicBoolean());
-        atomicMap.put(Commands.crashGChange, new AtomicBoolean());
     }
 
     @Override 
     protected void init(int id){
+        atomicMap.put(Commands.crashJoinID, new AtomicBoolean());
+        atomicMap.put(Commands.crashGChange, new AtomicBoolean());
         
         super.init(id);
         this.messageTimeout = null; 
@@ -37,18 +36,12 @@ public class GroupMember extends Node{
 
     /**
     *   Join request to the manager
-    *   - if should crash on prestart, crash
     *   - if not, set timeout for messages received from manager
     */
     public void preStart() {
 		if (this.remotePath != null) {      
             if(atomicMap.get(Commands.isolate).get()==false){
     			getContext().actorSelection(remotePath).tell(new Join(), getSelf());
-            }
-                
-            if(atomicMap.get(Commands.crashPrestart).compareAndSet(true, false)){
-                onCrash(new Crash());
-                return;
             }
             checkMessageTimeout();        
 		}
@@ -125,10 +118,6 @@ public class GroupMember extends Node{
         }
     }
 
-    private void onCrashPrestart(CrashPrestart msg){
-        atomicMap.get(Commands.crashPrestart).set(true);
-        Logging.out("prepare to crash afrer join request...");
-    }
     private void onCrashJoinID(CrashJoinID msg){
         atomicMap.get(Commands.crashJoinID).set(true);
         Logging.out("prepare to crash afrer received id from manager...");
@@ -207,8 +196,7 @@ public class GroupMember extends Node{
             .match(GroupView.class, this::onGroupView)        
             .match(MessageTimeout.class, this::onMessageTimeout)            
             .match(JoinID.class, this::onJoinID)   
-            
-            .match(CrashPrestart.class, this::onCrashPrestart)            
+                   
             .match(CrashJoinID.class, this::onCrashJoinID)            
             .match(CrashGChange.class, this::onCrashGChange)         
             .build();
