@@ -36,14 +36,14 @@ public class GroupMember extends Node{
 
     /**
     *   Join request to the manager
-    *   - if not, set timeout for messages received from manager
+    *   - if not isolated, set timeout for messages received from manager
     */
     public void preStart() {
 		if (this.remotePath != null) {      
             if(atomicMap.get(Commands.isolate).get()==false){
     			getContext().actorSelection(remotePath).tell(new Join(), getSelf());
+                checkMessageTimeout();        
             }
-            checkMessageTimeout();        
 		}
 	}
     
