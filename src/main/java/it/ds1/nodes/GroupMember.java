@@ -19,13 +19,13 @@ public class GroupMember extends Node{
     
     private GroupMember(int id, String remotePath) {
         super(id, remotePath);   
+        atomicMap.put(Commands.crashPrestart, new AtomicBoolean());
+        atomicMap.put(Commands.crashJoinID, new AtomicBoolean());
+        atomicMap.put(Commands.crashGChange, new AtomicBoolean());
     }
 
     @Override 
     protected void init(int id){
-        atomicMap.put(Commands.crashPrestart, new AtomicBoolean());
-        atomicMap.put(Commands.crashJoinID, new AtomicBoolean());
-        atomicMap.put(Commands.crashGChange, new AtomicBoolean());
         
         super.init(id);
         this.messageTimeout = null; 
